@@ -1,6 +1,6 @@
 def analyze_dc(voltage_v, resistance_ohm):
-    if resistance_ohm == 0:
-        raise ValueError("Resistance must not be zero.")
+    if resistance_ohm <= 0:
+        raise ValueError("Resistance must be positive")
 
     current_a = voltage_v / resistance_ohm
     power_w = voltage_v * current_a
