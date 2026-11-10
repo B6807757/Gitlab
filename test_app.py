@@ -102,5 +102,18 @@ class TestResults(unittest.TestCase):
         self.assertNotIn("✓", body)
 
 
+class TestDiagram(unittest.TestCase):
+    def setUp(self):
+        self.client = app.test_client()
+
+    def test_get_shows_schematic_with_default_values(self):
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn("<svg", body)
+        self.assertIn('role="img"', body)
+        for label in ("12.0 V", "47.0 kΩ", "10.0 kΩ", "2.20 kΩ", "1.00 kΩ"):
+            with self.subTest(label=label):
+                self.assertIn(label, body)
+
+
 if __name__ == "__main__":
     unittest.main()

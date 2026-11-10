@@ -107,6 +107,51 @@ h1 {
   border-radius: 6px;
 }
 
+.schematic {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.schematic svg {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+}
+
+.schematic .wire {
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.schematic .part {
+  fill: #fff;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.schematic .node {
+  fill: currentColor;
+}
+
+.schematic text {
+  font: 12px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  fill: currentColor;
+}
+
+.schematic .label {
+  font-weight: 600;
+}
+
+.schematic .value {
+  fill: var(--muted);
+}
+
 .results {
   padding: 1rem 1.15rem 1.3rem;
   background: #fff;

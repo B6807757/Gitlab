@@ -65,10 +65,15 @@ def build_inputs(form) -> BiasInputs:
     return BiasInputs(**values)
 
 
+DEFAULT_INPUTS = build_inputs(DEFAULTS)
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "GET":
-        return render_template("index.html", raw=DEFAULTS, result=None, error=None)
+        return render_template(
+            "index.html", raw=DEFAULTS, result=None, error=None, diagram=DEFAULT_INPUTS
+        )
 
     raw = {key: request.form.get(key, "") for key in DEFAULTS}
     try:
@@ -77,7 +82,9 @@ def index():
     except ValueError as exc:
         result = None
         error = str(exc)
-    return render_template("index.html", raw=raw, result=result, error=error)
+    return render_template(
+        "index.html", raw=raw, result=result, error=error, diagram=DEFAULT_INPUTS
+    )
 
 
 if __name__ == "__main__":
