@@ -114,6 +114,12 @@ class TestDiagram(unittest.TestCase):
             with self.subTest(label=label):
                 self.assertIn(label, body)
 
+    def test_diagram_follows_submitted_values(self):
+        body = self.client.post("/", data={**FORM, "r1": "100k"}).get_data(as_text=True)
+        self.assertIn("100 kΩ", body)
+        self.assertIn("366 µA", body)
+        self.assertNotIn("47.0 kΩ", body)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -82,8 +82,9 @@ def index():
     except ValueError as exc:
         result = None
         error = str(exc)
+    diagram = result.inputs if result is not None else DEFAULT_INPUTS
     return render_template(
-        "index.html", raw=raw, result=result, error=error, diagram=DEFAULT_INPUTS
+        "index.html", raw=raw, result=result, error=error, diagram=diagram
     )
 
 
