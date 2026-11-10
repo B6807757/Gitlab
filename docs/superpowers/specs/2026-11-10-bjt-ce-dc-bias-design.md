@@ -221,3 +221,37 @@ warning (`VCE ≈ 0.43 V`).
 - Whether results appear below the form on the same page (assumed) or as a separate view.
 - Default form values (assumed: the reference fixture, since it matches the lab sheet).
 - Whether `app.py` exposes a factory; the module-level `app` is sufficient here.
+
+---
+
+## Addendum: schematic illustration
+
+**Goal:** the page also draws the circuit, and the drawing never disagrees with the numbers.
+
+**Approach:** one inline SVG in `templates/index.html`; the shape is static, the labels are not.
+`app.py` parses `DEFAULTS` once into `DEFAULT_INPUTS` and passes `diagram: BiasInputs` to the
+template. Every label comes from the same `BiasInputs` the solver used (`result.inputs` on a
+successful POST, `DEFAULT_INPUTS` on GET or a validation error), formatted by the existing
+`format_voltage` / `format_resistance` / `"%g"` helpers. No JavaScript, no image file, no new
+dependency, and `bjt.py` is untouched.
+
+**Behaviour:**
+
+1. GET renders the diagram with the default values.
+2. A successful POST renders it with the submitted values, so a label can never drift from the
+   result computed from it.
+3. Invalid input still renders the diagram, from defaults, with the caption
+   `แผนภาพแสดงค่าตั้งต้น — แก้ไขค่าที่ไม่ถูกต้องก่อน`.
+4. Below the region badge, a verdict line states the region and the governing bound
+   (`โซนแอกทีฟปกติ · VCE = … > 0.2 V`, saturation, or cutoff).
+5. At ≥900 px the form/results and the diagram sit in two columns; below that they stack.
+
+**Accessibility:** `role="img"` and `aria-labelledby` point at the SVG `<title>`.
+
+**Acceptance criteria (addendum):**
+
+1. `GET /` contains `<svg`, `role="img"`, and the default labels.
+2. `POST r1=100k` shows `100 kΩ` in the diagram and no stale `47.0 kΩ`.
+3. `POST r1=0` is a 200 page with the diagram and the default-values caption.
+4. An active result shows `โซนแอกทีฟปกติ`.
+5. The full `python -m unittest -v` suite stays green.
