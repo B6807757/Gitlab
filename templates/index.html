@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BJT Common-Emitter DC Bias — ENG29 2121</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main>
+    <h1>BJT Common-Emitter DC Bias <span class="course">ENG29 2121</span></h1>
+    <p class="hint">วงจรไบแอสแบบแบ่งแรงดัน · หน่วย V, Ω และ β (ไม่มีหน่วย)</p>
+
+    <form method="post" class="bias-form">
+      <label>แรงดันไฟเลี้ยง VCC (V)
+        <input name="vcc" value="{{ raw.vcc }}" inputmode="decimal">
+      </label>
+      <label>R1 (Ω)
+        <input name="r1" value="{{ raw.r1 }}" inputmode="decimal">
+      </label>
+      <label>R2 (Ω)
+        <input name="r2" value="{{ raw.r2 }}" inputmode="decimal">
+      </label>
+      <label>RC (Ω)
+        <input name="rc" value="{{ raw.rc }}" inputmode="decimal">
+      </label>
+      <label>RE (Ω)
+        <input name="re" value="{{ raw.re }}" inputmode="decimal">
+      </label>
+      <label>β
+        <input name="beta" value="{{ raw.beta }}" inputmode="decimal">
+      </label>
+      <label>VBE (V)
+        <input name="vbe" value="{{ raw.vbe }}" inputmode="decimal">
+      </label>
+      <button type="submit">คำนวณ</button>
+    </form>
+
+    {% if error %}
+    <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% block results %}{% endblock %}
+  </main>
+</body>
+</html>
