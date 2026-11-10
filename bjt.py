@@ -38,3 +38,21 @@ def validate(inputs: BiasInputs) -> None:
 
     if not 0 <= inputs.vbe < inputs.vcc:
         raise ValueError("VBE ต้องอยู่ระหว่าง 0 ถึง VCC")
+
+
+def thevenin_equivalent(inputs: BiasInputs) -> tuple[float, float]:
+    vbb = inputs.vcc * inputs.r2 / (inputs.r1 + inputs.r2)
+    rb = 1.0 / (1.0 / inputs.r1 + 1.0 / inputs.r2)
+    return vbb, rb
+
+
+def solve_thevenin(inputs: BiasInputs) -> dict[str, float]:
+    vbb, rb = thevenin_equivalent(inputs)
+    ib = (vbb - inputs.vbe) / (rb + (1.0 + inputs.beta) * inputs.re)
+    ic = inputs.beta * ib
+    ie = (1.0 + inputs.beta) * ib
+    ve = ie * inputs.re
+    vc = inputs.vcc - ic * inputs.rc
+    vb = ve + inputs.vbe
+    vce = vc - ve
+    return {"ib": ib, "ic": ic, "ie": ie, "vb": vb, "ve": ve, "vc": vc, "vce": vce}

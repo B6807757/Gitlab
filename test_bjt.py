@@ -1,6 +1,6 @@
 import unittest
 
-from bjt import BiasInputs, validate
+from bjt import BiasInputs, solve_thevenin, thevenin_equivalent, validate
 
 VALID = dict(vcc=12.0, r1=47000.0, r2=10000.0, rc=2200.0, re=1000.0, beta=150.0, vbe=0.7)
 
@@ -42,6 +42,27 @@ class TestValidation(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     validate(BiasInputs(**{**VALID, "r2": value}))
+
+
+class TestThevenin(unittest.TestCase):
+    def test_equivalent(self):
+        vbb, rb = thevenin_equivalent(BiasInputs(**VALID))
+        self.assertAlmostEqual(vbb, 2.1052632, delta=1e-6)
+        self.assertAlmostEqual(rb, 8245.614, delta=1e-2)
+
+    def test_reference_qpoint(self):
+        r = solve_thevenin(BiasInputs(**VALID))
+        self.assertAlmostEqual(r["ib"], 8.8245e-6, delta=1e-9)
+        self.assertAlmostEqual(r["ic"], 1.323675e-3, delta=1e-8)
+        self.assertAlmostEqual(r["ie"], 1.33249e-3, delta=1e-8)
+        self.assertAlmostEqual(r["vb"], 2.0325, delta=1e-4)
+        self.assertAlmostEqual(r["ve"], 1.33249, delta=1e-4)
+        self.assertAlmostEqual(r["vc"], 9.087915, delta=1e-4)
+        self.assertAlmostEqual(r["vce"], 7.755425, delta=1e-4)
+
+    def test_kirchhoff_holds(self):
+        r = solve_thevenin(BiasInputs(**VALID))
+        self.assertAlmostEqual(r["ib"] + r["ic"], r["ie"], delta=1e-12)
 
 
 if __name__ == "__main__":
