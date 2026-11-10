@@ -74,7 +74,15 @@
       <table class="compare">
         <tr><th>Thévenin IC</th><td>{{ format_current(result.ic_thevenin) }}</td></tr>
         <tr><th>Nodal IC</th><td>{{ format_current(result.ic_nodal) }}</td></tr>
-        <tr><th>ผลต่างสูงสุด</th><td>{{ "%.1e"|format(result.max_rel_diff) }}</td></tr>
+        <tr><th>ผลต่างสูงสุด</th>
+          {% if result.region == "active" %}
+          <td>{{ "%.1e"|format(result.max_rel_diff) }}
+            {% if agreement_ok(result.max_rel_diff) %}✓{% else %}<span class="fail">✗ ไม่ตรงกัน</span>{% endif %}
+          </td>
+          {% else %}
+          <td>— <span class="muted">ไม่มีผล (Q-point ไม่อยู่ในโหมดแอกทีฟ)</span></td>
+          {% endif %}
+        </tr>
         {% if result.ic_approx is not none %}
         <tr><th>สูตรประมาณ IC</th><td>{{ format_current(result.ic_approx) }}</td></tr>
         <tr><th>คลาดเคลื่อน</th><td>{{ "%.2f"|format(result.approx_error_pct) }}%</td></tr>

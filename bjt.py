@@ -41,7 +41,7 @@ def validate(inputs: BiasInputs) -> None:
 
 
 def thevenin_equivalent(inputs: BiasInputs) -> tuple[float, float]:
-    vbb = inputs.vcc * inputs.r2 / (inputs.r1 + inputs.r2)
+    vbb = inputs.vcc / (1.0 + inputs.r1 / inputs.r2)
     rb = 1.0 / (1.0 / inputs.r1 + 1.0 / inputs.r2)
     return vbb, rb
 
@@ -64,7 +64,7 @@ def solve_linear_system(a: list[list[float]], b: list[float]) -> list[float]:
 
     for col in range(n):
         pivot = max(range(col, n), key=lambda r: abs(m[r][col]))
-        if abs(m[pivot][col]) < 1e-12:
+        if abs(m[pivot][col]) <= 1e-300:
             raise ValueError("ระบบสมการไม่มีคำตอบเฉพาะ")
         m[col], m[pivot] = m[pivot], m[col]
         pv = m[col][col]
@@ -101,8 +101,17 @@ def solve_nodal(inputs: BiasInputs) -> dict[str, float]:
 def relative_difference(a: dict[str, float], b: dict[str, float]) -> float:
     worst = 0.0
     for key in a.keys() & b.keys():
+        if not (math.isfinite(a[key]) and math.isfinite(b[key])):
+            return math.inf
         worst = max(worst, abs(a[key] - b[key]) / max(abs(a[key]), 1e-12))
     return worst
+
+
+AGREEMENT_TOLERANCE = 1e-6
+
+
+def agreement_ok(max_rel_diff: float) -> bool:
+    return max_rel_diff <= AGREEMENT_TOLERANCE
 
 
 VCE_SAT_V = 0.2
@@ -166,6 +175,8 @@ def analyze(inputs: BiasInputs) -> BiasResult:
 
     thevenin = solve_thevenin(inputs)
     nodal = solve_nodal(inputs)
+    if not all(math.isfinite(value) for value in thevenin.values()):
+        raise ValueError("ค่าที่คำนวณได้เกินขอบเขตที่โปรแกรมรองรับ (ตรวจสอบค่า R และ β อีกครั้ง)")
     region = classify_region(vbb, inputs.vbe, thevenin["vce"])
 
     warnings: list[str] = []
@@ -182,7 +193,7 @@ def analyze(inputs: BiasInputs) -> BiasResult:
     ic_approx = None
     approx_error_pct = None
     stiff_divider = None
-    if region == "active":
+    if region == "active" and thevenin["ic"] > 0:
         ic_approx = (vbb - inputs.vbe) / inputs.re
         approx_error_pct = (ic_approx - thevenin["ic"]) / thevenin["ic"] * 100.0
         stiff_divider = inputs.beta * inputs.re >= STIFF_FACTOR * rb

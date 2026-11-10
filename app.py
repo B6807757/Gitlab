@@ -4,6 +4,7 @@ from flask import Flask, render_template, request
 
 from bjt import (
     BiasInputs,
+    agreement_ok,
     analyze,
     format_current,
     format_resistance,
@@ -12,6 +13,7 @@ from bjt import (
 
 app = Flask(__name__)
 app.jinja_env.globals.update(
+    agreement_ok=agreement_ok,
     format_current=format_current,
     format_resistance=format_resistance,
     format_voltage=format_voltage,
@@ -79,4 +81,4 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)

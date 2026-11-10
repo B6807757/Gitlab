@@ -92,6 +92,15 @@ class TestResults(unittest.TestCase):
         self.assertIn("Cutoff", body)
         self.assertIn("—", body)
 
+    def test_active_result_confirms_agreement(self):
+        body = self.client.post("/", data=FORM).get_data(as_text=True)
+        self.assertIn("✓", body)
+
+    def test_saturation_result_dashes_the_agreement_row(self):
+        body = self.client.post("/", data={**FORM, "rc": "47k"}).get_data(as_text=True)
+        self.assertIn("—", body)
+        self.assertNotIn("✓", body)
+
 
 if __name__ == "__main__":
     unittest.main()

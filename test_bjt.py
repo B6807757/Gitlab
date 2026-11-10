@@ -1,8 +1,11 @@
+import math
 import unittest
 
 from bjt import (
+    AGREEMENT_TOLERANCE,
     VCE_SAT_V,
     BiasInputs,
+    agreement_ok,
     analyze,
     classify_region,
     format_current,
@@ -214,6 +217,46 @@ class TestFormatting(unittest.TestCase):
         for value, expected in cases:
             with self.subTest(value=value):
                 self.assertEqual(format_resistance(value), expected)
+
+
+class TestExtremeInputs(unittest.TestCase):
+    def test_astronomical_values_never_raise_arithmetic_errors(self):
+        for field in ("vcc", "r1", "r2", "rc", "re", "beta"):
+            with self.subTest(field=field):
+                try:
+                    result = analyze(BiasInputs(**{**VALID, field: 1e308}))
+                except ValueError:
+                    continue
+                for name in ("ib", "ic", "ie", "vb", "ve", "vc", "vce"):
+                    self.assertTrue(math.isfinite(getattr(result, name)), name)
+
+    def test_emitter_overflow_reports_no_approximation(self):
+        result = analyze(BiasInputs(**{**VALID, "re": 1e308}))
+        self.assertIsNone(result.ic_approx)
+        self.assertIsNone(result.approx_error_pct)
+
+    def test_non_finite_result_is_rejected(self):
+        with self.assertRaises(ValueError):
+            analyze(
+                BiasInputs(**{**VALID, "beta": 1e308, "re": 1e-300, "rc": 1e308})
+            )
+
+    def test_large_resistor_is_not_rejected_as_singular(self):
+        result = analyze(BiasInputs(**{**VALID, "rc": 1e13}))
+        self.assertEqual(result.region, "saturation")
+        self.assertLess(result.vce, 0.0)
+
+
+class TestAgreementFlag(unittest.TestCase):
+    def test_tolerance(self):
+        self.assertEqual(AGREEMENT_TOLERANCE, 1e-6)
+        self.assertTrue(agreement_ok(1e-16))
+        self.assertFalse(agreement_ok(1e-3))
+
+    def test_non_finite_difference_is_a_failure(self):
+        diff = relative_difference({"ic": math.inf}, {"ic": 1.0})
+        self.assertEqual(diff, math.inf)
+        self.assertFalse(agreement_ok(diff))
 
 
 if __name__ == "__main__":
