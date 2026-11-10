@@ -116,6 +116,24 @@ h1 {
   text-align: center;
 }
 
+.schematic .caption {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.layout {
+  display: grid;
+}
+
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 0 1.5rem;
+    align-items: start;
+  }
+}
+
 .schematic svg {
   width: 100%;
   max-width: 320px;
@@ -186,6 +204,30 @@ h1 {
 
 .badge-cutoff {
   background: var(--cutoff);
+}
+
+.verdict {
+  margin: 0 0 0.9rem;
+  padding: 0.45rem 0.7rem;
+  border-left: 4px solid currentColor;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.verdict-active {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.verdict-saturation {
+  color: #b45309;
+  background: #fff7ed;
+}
+
+.verdict-cutoff {
+  color: #475569;
+  background: #f1f5f9;
 }
 
 .quantities {

@@ -120,6 +120,16 @@ class TestDiagram(unittest.TestCase):
         self.assertIn("366 µA", body)
         self.assertNotIn("47.0 kΩ", body)
 
+    def test_invalid_input_keeps_a_default_schematic(self):
+        body = self.client.post("/", data={**FORM, "r1": "0"}).get_data(as_text=True)
+        self.assertIn("<svg", body)
+        self.assertIn("ค่าตั้งต้น", body)
+
+    def test_active_result_shows_a_region_verdict(self):
+        body = self.client.post("/", data=FORM).get_data(as_text=True)
+        self.assertIn("โซนแอกทีฟปกติ", body)
+        self.assertIn("7.76 V", body)
+
 
 if __name__ == "__main__":
     unittest.main()
