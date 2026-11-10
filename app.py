@@ -2,9 +2,20 @@ import re
 
 from flask import Flask, render_template, request
 
-from bjt import BiasInputs, analyze
+from bjt import (
+    BiasInputs,
+    analyze,
+    format_current,
+    format_resistance,
+    format_voltage,
+)
 
 app = Flask(__name__)
+app.jinja_env.globals.update(
+    format_current=format_current,
+    format_resistance=format_resistance,
+    format_voltage=format_voltage,
+)
 
 DEFAULTS = {
     "vcc": "12",
@@ -52,9 +63,19 @@ def build_inputs(form) -> BiasInputs:
     return BiasInputs(**values)
 
 
-@app.route("/", methods=["GET"])
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return render_template("index.html", raw=DEFAULTS, result=None, error=None)
+    if request.method == "GET":
+        return render_template("index.html", raw=DEFAULTS, result=None, error=None)
+
+    raw = {key: request.form.get(key, "") for key in DEFAULTS}
+    try:
+        result = analyze(build_inputs(raw))
+        error = None
+    except ValueError as exc:
+        result = None
+        error = str(exc)
+    return render_template("index.html", raw=raw, result=result, error=error)
 
 
 if __name__ == "__main__":

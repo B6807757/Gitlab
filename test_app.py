@@ -41,5 +41,57 @@ class TestRoutes(unittest.TestCase):
         self.assertIn('value="47k"', body)
 
 
+FORM = {
+    "vcc": "12",
+    "r1": "47k",
+    "r2": "10k",
+    "rc": "2.2k",
+    "re": "1k",
+    "beta": "150",
+    "vbe": "0.7",
+}
+
+
+class TestResults(unittest.TestCase):
+    def setUp(self):
+        self.client = app.test_client()
+
+    def test_reference_qpoint(self):
+        resp = self.client.post("/", data=FORM)
+        body = resp.get_data(as_text=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("1.32 mA", body)
+        self.assertIn("7.76 V", body)
+        self.assertIn("Active", body)
+        self.assertIn("1.41 mA", body)
+        self.assertIn("6.16", body)
+
+    def test_invalid_input_is_readable_and_keeps_typed_value(self):
+        resp = self.client.post("/", data={**FORM, "r1": "0"})
+        body = resp.get_data(as_text=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("ต้องมากกว่า 0", body)
+        self.assertIn('value="0"', body)
+        self.assertNotIn("Traceback", body)
+
+    def test_non_numeric_input(self):
+        resp = self.client.post("/", data={**FORM, "vcc": "abc"})
+        body = resp.get_data(as_text=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("กรุณากรอกเป็นตัวเลข", body)
+
+    def test_saturation_warning(self):
+        resp = self.client.post("/", data={**FORM, "rc": "47k"})
+        body = resp.get_data(as_text=True)
+        self.assertIn("Saturation", body)
+        self.assertIn("246 µA", body)
+
+    def test_cutoff_warning_and_dash_in_comparison(self):
+        resp = self.client.post("/", data={**FORM, "r2": "1k"})
+        body = resp.get_data(as_text=True)
+        self.assertIn("Cutoff", body)
+        self.assertIn("—", body)
+
+
 if __name__ == "__main__":
     unittest.main()

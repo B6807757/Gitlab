@@ -40,7 +40,52 @@
     <p class="error">{{ error }}</p>
     {% endif %}
 
-    {% block results %}{% endblock %}
+    {% block results %}
+    {% if result %}
+    <section class="results">
+      <h2>จุดทำงาน DC <span class="badge badge-{{ result.region }}">{{ result.region|capitalize }}</span></h2>
+
+      <dl class="quantities">
+        <div><dt>IB</dt><dd>{{ format_current(result.ib) }}</dd></div>
+        <div><dt>IC</dt><dd>{{ format_current(result.ic) }}</dd></div>
+        <div><dt>IE</dt><dd>{{ format_current(result.ie) }}</dd></div>
+        <div><dt>VB</dt><dd>{{ format_voltage(result.vb) }}</dd></div>
+        <div><dt>VE</dt><dd>{{ format_voltage(result.ve) }}</dd></div>
+        <div><dt>VC</dt><dd>{{ format_voltage(result.vc) }}</dd></div>
+        <div><dt>VCE</dt><dd>{{ format_voltage(result.vce) }}</dd></div>
+        <div><dt>VBE</dt><dd>{{ format_voltage(result.inputs.vbe) }}</dd></div>
+      </dl>
+
+      <p class="intermediates">
+        VBB = {{ format_voltage(result.vbb) }} · RB = {{ format_resistance(result.rb) }}
+      </p>
+
+      {% if result.warnings %}
+      <ul class="warnings">
+        {% for warning in result.warnings %}<li>{{ warning }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if result.ic_sat is not none %}
+      <p class="limit">IC(sat) ≈ {{ format_current(result.ic_sat) }}</p>
+      {% endif %}
+
+      <h3>ตรวจสอบการคำนวณ</h3>
+      <table class="compare">
+        <tr><th>Thévenin IC</th><td>{{ format_current(result.ic_thevenin) }}</td></tr>
+        <tr><th>Nodal IC</th><td>{{ format_current(result.ic_nodal) }}</td></tr>
+        <tr><th>ผลต่างสูงสุด</th><td>{{ "%.1e"|format(result.max_rel_diff) }}</td></tr>
+        {% if result.ic_approx is not none %}
+        <tr><th>สูตรประมาณ IC</th><td>{{ format_current(result.ic_approx) }}</td></tr>
+        <tr><th>คลาดเคลื่อน</th><td>{{ "%.2f"|format(result.approx_error_pct) }}%</td></tr>
+        <tr><th>stiff divider</th><td>{% if result.stiff_divider %}stiff ✓{% else %}stiff ✗{% endif %}</td></tr>
+        {% else %}
+        <tr><th>สูตรประมาณ</th><td>— <span class="muted">ไม่มีผล (Q-point ไม่อยู่ในโหมดแอกทีฟ)</span></td></tr>
+        {% endif %}
+      </table>
+    </section>
+    {% endif %}
+    {% endblock %}
   </main>
 </body>
 </html>
