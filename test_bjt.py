@@ -1,6 +1,14 @@
 import unittest
 
-from bjt import BiasInputs, solve_thevenin, thevenin_equivalent, validate
+from bjt import (
+    BiasInputs,
+    relative_difference,
+    solve_linear_system,
+    solve_nodal,
+    solve_thevenin,
+    thevenin_equivalent,
+    validate,
+)
 
 VALID = dict(vcc=12.0, r1=47000.0, r2=10000.0, rc=2200.0, re=1000.0, beta=150.0, vbe=0.7)
 
@@ -63,6 +71,30 @@ class TestThevenin(unittest.TestCase):
     def test_kirchhoff_holds(self):
         r = solve_thevenin(BiasInputs(**VALID))
         self.assertAlmostEqual(r["ib"] + r["ic"], r["ie"], delta=1e-12)
+
+
+class TestNodal(unittest.TestCase):
+    def test_gaussian_elimination(self):
+        x = solve_linear_system([[2.0, 1.0], [1.0, -1.0]], [5.0, 1.0])
+        self.assertAlmostEqual(x[0], 2.0)
+        self.assertAlmostEqual(x[1], 1.0)
+
+    def test_singular_system_raises(self):
+        with self.assertRaises(ValueError):
+            solve_linear_system([[1.0, 2.0], [2.0, 4.0]], [1.0, 2.0])
+
+    def test_agrees_with_thevenin_on_fixtures(self):
+        fixtures = (
+            VALID,
+            {**VALID, "rc": 47000.0},
+            {**VALID, "r1": 70000.0, "re": 100.0},
+            {**VALID, "r1": 1000.0, "r2": 10000.0, "rc": 10.0, "re": 10.0, "beta": 10.0},
+        )
+        for fixture in fixtures:
+            with self.subTest(fixture=fixture):
+                inputs = BiasInputs(**fixture)
+                diff = relative_difference(solve_thevenin(inputs), solve_nodal(inputs))
+                self.assertLess(diff, 1e-9)
 
 
 if __name__ == "__main__":

@@ -56,3 +56,50 @@ def solve_thevenin(inputs: BiasInputs) -> dict[str, float]:
     vb = ve + inputs.vbe
     vce = vc - ve
     return {"ib": ib, "ic": ic, "ie": ie, "vb": vb, "ve": ve, "vc": vc, "vce": vce}
+
+
+def solve_linear_system(a: list[list[float]], b: list[float]) -> list[float]:
+    n = len(a)
+    m = [list(row) + [b[i]] for i, row in enumerate(a)]
+
+    for col in range(n):
+        pivot = max(range(col, n), key=lambda r: abs(m[r][col]))
+        if abs(m[pivot][col]) < 1e-12:
+            raise ValueError("ระบบสมการไม่มีคำตอบเฉพาะ")
+        m[col], m[pivot] = m[pivot], m[col]
+        pv = m[col][col]
+        for r in range(col + 1, n):
+            f = m[r][col] / pv
+            if f:
+                for c in range(col, n + 1):
+                    m[r][c] -= f * m[col][c]
+
+    x = [0.0] * n
+    for r in range(n - 1, -1, -1):
+        s = m[r][n] - sum(m[r][c] * x[c] for c in range(r + 1, n))
+        x[r] = s / m[r][r]
+    return x
+
+
+def solve_nodal(inputs: BiasInputs) -> dict[str, float]:
+    beta = inputs.beta
+    a = [
+        [1.0 / inputs.r1 + 1.0 / inputs.r2, 0.0, 1.0 / beta],
+        [0.0, -1.0 / inputs.rc, -1.0],
+        [1.0 / inputs.re, 0.0, -(beta + 1.0) / beta],
+    ]
+    b = [inputs.vcc / inputs.r1, -inputs.vcc / inputs.rc, inputs.vbe / inputs.re]
+
+    vb, vc, ic = solve_linear_system(a, b)
+    ib = ic / beta
+    ie = ic + ib
+    ve = vb - inputs.vbe
+    vce = vc - ve
+    return {"ib": ib, "ic": ic, "ie": ie, "vb": vb, "ve": ve, "vc": vc, "vce": vce}
+
+
+def relative_difference(a: dict[str, float], b: dict[str, float]) -> float:
+    worst = 0.0
+    for key in a.keys() & b.keys():
+        worst = max(worst, abs(a[key] - b[key]) / max(abs(a[key]), 1e-12))
+    return worst
