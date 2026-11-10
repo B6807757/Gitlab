@@ -208,3 +208,44 @@ def analyze(inputs: BiasInputs) -> BiasResult:
         approx_error_pct=approx_error_pct,
         stiff_divider=stiff_divider,
     )
+
+def _sig3(value: float) -> str:
+    text = format(value, "#.3g")
+    return text[:-1] if text.endswith(".") else text
+
+
+def format_current(amperes: float) -> str:
+    if amperes == 0:
+        return "0 A"
+    magnitude = abs(amperes)
+    if magnitude < 1e-6:
+        return f"{_sig3(amperes * 1e9)} nA"
+    if magnitude < 1e-3:
+        return f"{_sig3(amperes * 1e6)} µA"
+    if magnitude < 1:
+        return f"{_sig3(amperes * 1e3)} mA"
+    return f"{_sig3(amperes)} A"
+
+
+def format_voltage(volts: float) -> str:
+    if volts == 0:
+        return "0 V"
+    magnitude = abs(volts)
+    if magnitude < 1e-3:
+        return f"{_sig3(volts * 1e6)} µV"
+    if magnitude < 1:
+        return f"{_sig3(volts * 1e3)} mV"
+    if magnitude < 1e3:
+        return f"{_sig3(volts)} V"
+    return f"{_sig3(volts / 1e3)} kV"
+
+
+def format_resistance(ohms: float) -> str:
+    if ohms == 0:
+        return "0 Ω"
+    magnitude = abs(ohms)
+    if magnitude < 1e3:
+        return f"{_sig3(ohms)} Ω"
+    if magnitude < 1e6:
+        return f"{_sig3(ohms / 1e3)} kΩ"
+    return f"{_sig3(ohms / 1e6)} MΩ"

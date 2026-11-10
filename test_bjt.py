@@ -5,6 +5,9 @@ from bjt import (
     BiasInputs,
     analyze,
     classify_region,
+    format_current,
+    format_resistance,
+    format_voltage,
     relative_difference,
     solve_linear_system,
     solve_nodal,
@@ -173,6 +176,44 @@ class TestApproximation(unittest.TestCase):
                 self.assertIsNone(r.ic_approx)
                 self.assertIsNone(r.approx_error_pct)
                 self.assertIsNone(r.stiff_divider)
+
+
+class TestFormatting(unittest.TestCase):
+    def test_currents(self):
+        cases = (
+            (1.323675e-3, "1.32 mA"),
+            (8.8245e-6, "8.82 µA"),
+            (2.0, "2.00 A"),
+            (0.5, "500 mA"),
+            (1e-9, "1.00 nA"),
+            (0.0, "0 A"),
+        )
+        for value, expected in cases:
+            with self.subTest(value=value):
+                self.assertEqual(format_current(value), expected)
+
+    def test_voltages(self):
+        cases = (
+            (7.755425, "7.76 V"),
+            (0.5, "500 mV"),
+            (5e-4, "500 µV"),
+            (1200.0, "1.20 kV"),
+            (0.0, "0 V"),
+        )
+        for value, expected in cases:
+            with self.subTest(value=value):
+                self.assertEqual(format_voltage(value), expected)
+
+    def test_resistances(self):
+        cases = (
+            (8245.614, "8.25 kΩ"),
+            (470.0, "470 Ω"),
+            (2.2e6, "2.20 MΩ"),
+            (0.0, "0 Ω"),
+        )
+        for value, expected in cases:
+            with self.subTest(value=value):
+                self.assertEqual(format_resistance(value), expected)
 
 
 if __name__ == "__main__":
