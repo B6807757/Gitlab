@@ -103,3 +103,93 @@ def relative_difference(a: dict[str, float], b: dict[str, float]) -> float:
     for key in a.keys() & b.keys():
         worst = max(worst, abs(a[key] - b[key]) / max(abs(a[key]), 1e-12))
     return worst
+
+
+VCE_SAT_V = 0.2
+LOW_HEADROOM_V = 1.0
+
+
+@dataclass(frozen=True)
+class BiasResult:
+    inputs: BiasInputs
+    vbb: float
+    rb: float
+    ib: float
+    ic: float
+    ie: float
+    vb: float
+    ve: float
+    vc: float
+    vce: float
+    region: str
+    warnings: tuple[str, ...]
+    ic_thevenin: float
+    ic_nodal: float
+    max_rel_diff: float
+    ic_sat: float | None = None
+
+
+def classify_region(vbb: float, vbe: float, vce: float) -> str:
+    if vbb <= vbe:
+        return "cutoff"
+    if vce < VCE_SAT_V:
+        return "saturation"
+    return "active"
+
+
+def analyze(inputs: BiasInputs) -> BiasResult:
+    validate(inputs)
+    vbb, rb = thevenin_equivalent(inputs)
+
+    if vbb <= inputs.vbe:
+        return BiasResult(
+            inputs=inputs,
+            vbb=vbb,
+            rb=rb,
+            ib=0.0,
+            ic=0.0,
+            ie=0.0,
+            vb=vbb,
+            ve=0.0,
+            vc=inputs.vcc,
+            vce=inputs.vcc,
+            region="cutoff",
+            warnings=("ทรานซิสเตอร์ตัดการทำงาน (VBB ≤ VBE): IC = 0 และ VCE = VCC",),
+            ic_thevenin=0.0,
+            ic_nodal=0.0,
+            max_rel_diff=0.0,
+        )
+
+    thevenin = solve_thevenin(inputs)
+    nodal = solve_nodal(inputs)
+    region = classify_region(vbb, inputs.vbe, thevenin["vce"])
+
+    warnings: list[str] = []
+    ic_sat = None
+    if region == "saturation":
+        ic_sat = (inputs.vcc - VCE_SAT_V) / (inputs.rc + inputs.re)
+        warnings.append(
+            "Q-point อยู่ในโซนอิ่มตัว (VCE < 0.2 V): ค่าที่คำนวณไม่ใช่จุดทำงานจริง "
+            "— ลด RC หรือเพิ่ม RE"
+        )
+    elif thevenin["vce"] < LOW_HEADROOM_V:
+        warnings.append("VCE ต่ำกว่า 1.0 V: headroom เหลือน้อย ใกล้จะอิ่มตัว")
+
+    return BiasResult(
+        inputs=inputs,
+        vbb=vbb,
+        rb=rb,
+        ib=thevenin["ib"],
+        ic=thevenin["ic"],
+        ie=thevenin["ie"],
+        vb=thevenin["vb"],
+        ve=thevenin["ve"],
+        vc=thevenin["vc"],
+        vce=thevenin["vce"],
+        region=region,
+        warnings=tuple(warnings),
+        ic_thevenin=thevenin["ic"],
+        ic_nodal=nodal["ic"],
+        max_rel_diff=relative_difference(thevenin, nodal),
+        ic_sat=ic_sat,
+    )

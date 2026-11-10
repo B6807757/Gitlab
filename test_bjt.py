@@ -1,7 +1,10 @@
 import unittest
 
 from bjt import (
+    VCE_SAT_V,
     BiasInputs,
+    analyze,
+    classify_region,
     relative_difference,
     solve_linear_system,
     solve_nodal,
@@ -95,6 +98,56 @@ class TestNodal(unittest.TestCase):
                 inputs = BiasInputs(**fixture)
                 diff = relative_difference(solve_thevenin(inputs), solve_nodal(inputs))
                 self.assertLess(diff, 1e-9)
+
+
+class TestRegion(unittest.TestCase):
+    def test_boundaries(self):
+        self.assertEqual(classify_region(vbb=0.7, vbe=0.7, vce=12.0), "cutoff")
+        self.assertEqual(classify_region(vbb=1.0, vbe=0.7, vce=0.2), "active")
+        self.assertEqual(classify_region(vbb=1.0, vbe=0.7, vce=0.1999), "saturation")
+        self.assertEqual(classify_region(vbb=1.0, vbe=0.7, vce=1.0), "active")
+
+
+class TestAnalyze(unittest.TestCase):
+    def test_reference_is_active_without_warnings(self):
+        r = analyze(BiasInputs(**VALID))
+        self.assertEqual(r.region, "active")
+        self.assertEqual(r.warnings, ())
+        self.assertIsNone(r.ic_sat)
+        self.assertAlmostEqual(r.ic, 1.323675e-3, delta=1e-8)
+        self.assertAlmostEqual(r.vbb, 2.1052632, delta=1e-6)
+        self.assertAlmostEqual(r.rb, 8245.614, delta=1e-2)
+        self.assertLess(r.max_rel_diff, 1e-9)
+        self.assertAlmostEqual(r.ic_thevenin, r.ic_nodal, delta=1e-12)
+
+    def test_cutoff(self):
+        r = analyze(BiasInputs(**{**VALID, "r2": 1000.0}))
+        self.assertEqual(r.region, "cutoff")
+        self.assertEqual((r.ib, r.ic, r.ie), (0.0, 0.0, 0.0))
+        self.assertAlmostEqual(r.vce, 12.0)
+        self.assertAlmostEqual(r.vc, 12.0)
+        self.assertAlmostEqual(r.vb, 0.25)
+        self.assertAlmostEqual(r.ve, 0.0)
+        self.assertIn("ตัดการทำงาน", r.warnings[0])
+
+    def test_saturation_is_reported_not_clamped(self):
+        r = analyze(BiasInputs(**{**VALID, "rc": 47000.0}))
+        self.assertEqual(r.region, "saturation")
+        self.assertAlmostEqual(r.ic, 1.323675e-3, delta=1e-8)
+        self.assertLess(r.vce, VCE_SAT_V)
+        self.assertAlmostEqual(r.ic_sat, 0.2458333e-3, delta=1e-8)
+        self.assertIn("อิ่มตัว", r.warnings[0])
+
+    def test_low_headroom_warns_but_stays_active(self):
+        r = analyze(BiasInputs(**{**VALID, "r1": 70000.0, "re": 100.0}))
+        self.assertEqual(r.region, "active")
+        self.assertAlmostEqual(r.vce, 0.4245, delta=1e-3)
+        self.assertEqual(len(r.warnings), 1)
+        self.assertIn("headroom", r.warnings[0])
+
+    def test_huge_but_finite_resistance_returns_cutoff(self):
+        r = analyze(BiasInputs(**{**VALID, "r1": 1e308}))
+        self.assertEqual(r.region, "cutoff")
 
 
 if __name__ == "__main__":
