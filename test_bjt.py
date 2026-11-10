@@ -150,5 +150,30 @@ class TestAnalyze(unittest.TestCase):
         self.assertEqual(r.region, "cutoff")
 
 
+class TestApproximation(unittest.TestCase):
+    def test_reference_approximation(self):
+        r = analyze(BiasInputs(**VALID))
+        self.assertAlmostEqual(r.ic_approx, 1.4052632e-3, delta=1e-9)
+        self.assertAlmostEqual(r.approx_error_pct, 6.1638, delta=0.01)
+        self.assertTrue(r.stiff_divider)
+
+    def test_non_stiff_divider_is_flagged(self):
+        r = analyze(
+            BiasInputs(vcc=12.0, r1=1000.0, r2=10000.0, rc=10.0, re=10.0, beta=10.0, vbe=0.7)
+        )
+        self.assertEqual(r.region, "active")
+        self.assertFalse(r.stiff_divider)
+        self.assertAlmostEqual(r.ic_approx, 1.0209, delta=1e-3)
+        self.assertGreater(r.approx_error_pct, 300.0)
+
+    def test_not_offered_outside_the_active_region(self):
+        for fixture in ({**VALID, "r2": 1000.0}, {**VALID, "rc": 47000.0}):
+            with self.subTest(fixture=fixture):
+                r = analyze(BiasInputs(**fixture))
+                self.assertIsNone(r.ic_approx)
+                self.assertIsNone(r.approx_error_pct)
+                self.assertIsNone(r.stiff_divider)
+
+
 if __name__ == "__main__":
     unittest.main()

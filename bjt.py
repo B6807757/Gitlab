@@ -107,6 +107,7 @@ def relative_difference(a: dict[str, float], b: dict[str, float]) -> float:
 
 VCE_SAT_V = 0.2
 LOW_HEADROOM_V = 1.0
+STIFF_FACTOR = 10.0
 
 
 @dataclass(frozen=True)
@@ -127,6 +128,9 @@ class BiasResult:
     ic_nodal: float
     max_rel_diff: float
     ic_sat: float | None = None
+    ic_approx: float | None = None
+    approx_error_pct: float | None = None
+    stiff_divider: bool | None = None
 
 
 def classify_region(vbb: float, vbe: float, vce: float) -> str:
@@ -175,6 +179,14 @@ def analyze(inputs: BiasInputs) -> BiasResult:
     elif thevenin["vce"] < LOW_HEADROOM_V:
         warnings.append("VCE ต่ำกว่า 1.0 V: headroom เหลือน้อย ใกล้จะอิ่มตัว")
 
+    ic_approx = None
+    approx_error_pct = None
+    stiff_divider = None
+    if region == "active":
+        ic_approx = (vbb - inputs.vbe) / inputs.re
+        approx_error_pct = (ic_approx - thevenin["ic"]) / thevenin["ic"] * 100.0
+        stiff_divider = inputs.beta * inputs.re >= STIFF_FACTOR * rb
+
     return BiasResult(
         inputs=inputs,
         vbb=vbb,
@@ -192,4 +204,7 @@ def analyze(inputs: BiasInputs) -> BiasResult:
         ic_nodal=nodal["ic"],
         max_rel_diff=relative_difference(thevenin, nodal),
         ic_sat=ic_sat,
+        ic_approx=ic_approx,
+        approx_error_pct=approx_error_pct,
+        stiff_divider=stiff_divider,
     )
