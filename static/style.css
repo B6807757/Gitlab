@@ -127,6 +127,10 @@ h1 {
 }
 
 @media (min-width: 900px) {
+  main {
+    max-width: 1060px;
+  }
+
   .layout {
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: 0 1.5rem;
@@ -216,17 +220,22 @@ h1 {
 }
 
 .verdict-active {
-  color: #047857;
+  color: var(--active);
   background: #ecfdf5;
 }
 
+.verdict-low {
+  color: var(--saturation);
+  background: #fff7ed;
+}
+
 .verdict-saturation {
-  color: #b45309;
+  color: var(--saturation);
   background: #fff7ed;
 }
 
 .verdict-cutoff {
-  color: #475569;
+  color: var(--cutoff);
   background: #f1f5f9;
 }
 

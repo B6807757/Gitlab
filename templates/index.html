@@ -48,9 +48,13 @@
           <h2>จุดทำงาน DC <span class="badge badge-{{ result.region }}">{{ result.region|capitalize }}</span></h2>
 
           {% if result.region == "active" %}
-          <p class="verdict verdict-active">โซนแอกทีฟปกติ · VCE = {{ format_voltage(result.vce) }} &gt; 0.2 V</p>
+          {% if result.warnings %}
+          <p class="verdict verdict-low">โซนแอกทีฟ · headroom ต่ำ · VCE = {{ format_voltage(result.vce) }}</p>
+          {% else %}
+          <p class="verdict verdict-active">โซนแอกทีฟปกติ · VCE = {{ format_voltage(result.vce) }}</p>
+          {% endif %}
           {% elif result.region == "saturation" %}
-          <p class="verdict verdict-saturation">Q-point อยู่ในโซนอิ่มตัว · VCE = {{ format_voltage(result.vce) }} &lt; 0.2 V</p>
+          <p class="verdict verdict-saturation">Q-point อยู่ในโซนอิ่มตัว · IC(sat) ≈ {{ format_current(result.ic_sat) }}</p>
           {% else %}
           <p class="verdict verdict-cutoff">ทรานซิสเตอร์ตัดการทำงาน · IC = 0</p>
           {% endif %}

@@ -121,14 +121,32 @@ class TestDiagram(unittest.TestCase):
         self.assertNotIn("47.0 kΩ", body)
 
     def test_invalid_input_keeps_a_default_schematic(self):
-        body = self.client.post("/", data={**FORM, "r1": "0"}).get_data(as_text=True)
+        resp = self.client.post("/", data={**FORM, "r1": "0"})
+        body = resp.get_data(as_text=True)
+        self.assertEqual(resp.status_code, 200)
         self.assertIn("<svg", body)
         self.assertIn("ค่าตั้งต้น", body)
+        self.assertIn("47.0 kΩ", body)
 
     def test_active_result_shows_a_region_verdict(self):
         body = self.client.post("/", data=FORM).get_data(as_text=True)
-        self.assertIn("โซนแอกทีฟปกติ", body)
-        self.assertIn("7.76 V", body)
+        self.assertIn("โซนแอกทีฟปกติ · VCE = 7.76 V", body)
+
+    def test_low_headroom_verdict_is_not_called_normal(self):
+        body = self.client.post(
+            "/", data={**FORM, "r1": "70k", "re": "100"}
+        ).get_data(as_text=True)
+        self.assertIn("โซนแอกทีฟ · headroom ต่ำ", body)
+        self.assertNotIn("โซนแอกทีฟปกติ", body)
+
+    def test_saturation_verdict_reports_the_limit(self):
+        body = self.client.post("/", data={**FORM, "rc": "47k"}).get_data(as_text=True)
+        self.assertIn("Q-point อยู่ในโซนอิ่มตัว · IC(sat) ≈ 246 µA", body)
+        self.assertNotIn("โซนแอกทีฟปกติ", body)
+
+    def test_cutoff_verdict(self):
+        body = self.client.post("/", data={**FORM, "r2": "1k"}).get_data(as_text=True)
+        self.assertIn("ทรานซิสเตอร์ตัดการทำงาน · IC = 0", body)
 
 
 if __name__ == "__main__":
