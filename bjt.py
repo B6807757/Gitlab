@@ -13,6 +13,25 @@ class BiasInputs:
     vbe: float
 
 
+@dataclass(frozen=True)
+class FixedInputs:
+    vcc: float
+    rb: float
+    rc: float
+    beta: float
+    vbe: float
+
+
+@dataclass(frozen=True)
+class EmitterInputs:
+    vcc: float
+    rb: float
+    rc: float
+    re: float
+    beta: float
+    vbe: float
+
+
 _FIELD_LABELS = {
     "vcc": "VCC",
     "r1": "R1",
@@ -22,6 +41,9 @@ _FIELD_LABELS = {
     "beta": "β",
     "vbe": "VBE",
 }
+
+
+_MODE_FIELD_LABELS = {**_FIELD_LABELS, "rb": "RB"}
 
 
 def validate(inputs: BiasInputs) -> None:
@@ -38,6 +60,35 @@ def validate(inputs: BiasInputs) -> None:
 
     if not 0 <= inputs.vbe < inputs.vcc:
         raise ValueError("VBE ต้องอยู่ระหว่าง 0 ถึง VCC")
+
+
+def _validate_forward_active_common(inputs) -> None:
+    for field, label in _MODE_FIELD_LABELS.items():
+        value = getattr(inputs, field, None)
+        if value is None:
+            continue
+        if not math.isfinite(value):
+            raise ValueError(f"{label} ต้องเป็นจำนวนจริง")
+
+    for field in ("vcc", "rb", "rc"):
+        if getattr(inputs, field) <= 0:
+            raise ValueError(f"{_MODE_FIELD_LABELS[field]} ต้องมากกว่า 0")
+
+    if inputs.beta < 1:
+        raise ValueError("β ต้องไม่น้อยกว่า 1")
+
+    if not 0 <= inputs.vbe < inputs.vcc:
+        raise ValueError("VBE ต้องอยู่ระหว่าง 0 ถึง VCC")
+
+
+def validate_fixed(inputs: FixedInputs) -> None:
+    _validate_forward_active_common(inputs)
+
+
+def validate_emitter(inputs: EmitterInputs) -> None:
+    _validate_forward_active_common(inputs)
+    if inputs.re <= 0:
+        raise ValueError("RE ต้องมากกว่า 0")
 
 
 def thevenin_equivalent(inputs: BiasInputs) -> tuple[float, float]:
@@ -142,6 +193,20 @@ class BiasResult:
     stiff_divider: bool | None = None
 
 
+@dataclass(frozen=True)
+class ModeResult:
+    inputs: FixedInputs | EmitterInputs
+    ib: float
+    ic: float
+    ie: float
+    vb: float
+    ve: float
+    vc: float
+    vce: float
+    region: str
+    warnings: tuple[str, ...]
+
+
 def classify_region(vbb: float, vbe: float, vce: float) -> str:
     if vbb <= vbe:
         return "cutoff"
@@ -219,6 +284,69 @@ def analyze(inputs: BiasInputs) -> BiasResult:
         approx_error_pct=approx_error_pct,
         stiff_divider=stiff_divider,
     )
+
+
+def _check_finite(values: dict[str, float]) -> None:
+    if not all(math.isfinite(value) for value in values.values()):
+        raise ValueError(
+            "ค่าที่คำนวณได้เกินขอบเขตที่โปรแกรมรองรับ (ตรวจสอบค่า R และ β อีกครั้ง)"
+        )
+
+
+def _model_warnings(ib: float, vce: float) -> tuple[str, ...]:
+    warnings: list[str] = []
+    if ib <= 0:
+        warnings.append("IB ≤ 0: แบบจำลอง Forward Active อาจใช้ไม่ได้")
+    if vce <= VCE_SAT_V:
+        warnings.append("VCE ≤ 0.2 V: แบบจำลอง Forward Active อาจใช้ไม่ได้")
+    return tuple(warnings)
+
+
+def _mode_region(ib: float, vce: float) -> str:
+    if ib > 0 and vce > VCE_SAT_V:
+        return "active"
+    return "model_warning"
+
+
+def analyze_fixed(inputs: FixedInputs) -> dict[str, object]:
+    validate_fixed(inputs)
+    ib = (inputs.vcc - inputs.vbe) / inputs.rb
+    ic = inputs.beta * ib
+    ie = (inputs.beta + 1.0) * ib
+    ve = 0.0
+    vb = ve + inputs.vbe
+    vc = inputs.vcc - ic * inputs.rc
+    vce = vc - ve
+
+    values = {"ib": ib, "ic": ic, "ie": ie, "vb": vb, "ve": ve, "vc": vc, "vce": vce}
+    _check_finite(values)
+
+    return {
+        **values,
+        "region": _mode_region(ib, vce),
+        "warnings": _model_warnings(ib, vce),
+    }
+
+
+def analyze_emitter(inputs: EmitterInputs) -> dict[str, object]:
+    validate_emitter(inputs)
+    ib = (inputs.vcc - inputs.vbe) / (inputs.rb + (inputs.beta + 1.0) * inputs.re)
+    ic = inputs.beta * ib
+    ie = (inputs.beta + 1.0) * ib
+    ve = ie * inputs.re
+    vb = ve + inputs.vbe
+    vc = inputs.vcc - ic * inputs.rc
+    vce = vc - ve
+
+    values = {"ib": ib, "ic": ic, "ie": ie, "vb": vb, "ve": ve, "vc": vc, "vce": vce}
+    _check_finite(values)
+
+    return {
+        **values,
+        "region": _mode_region(ib, vce),
+        "warnings": _model_warnings(ib, vce),
+    }
+
 
 def _sig3(value: float) -> str:
     text = format(value, "#.3g")
