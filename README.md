@@ -93,3 +93,60 @@ python -m unittest -v
 ```
 
 รันทั้งชุดของทั้งสองแลป (`electrical.py` และ `bjt.py`)
+
+---
+
+# ENG29 2121 — Lab 03: Three BJT Bias Modes
+
+ต่อยอดจาก Lab 2 โดยเพิ่มโหมดไบแอสให้เลือก 3 แบบในหน้าเดียว เลือกโหมดด้วยฟอร์ม GET
+(โหลดหน้าใหม่ ไม่ใช้ JavaScript) แล้วกรอกค่าของโหมดนั้น กด `คำนวณ`
+สมการทั้งหมดอยู่ใน `bjt.py` ทั้งหมด HTML ทำหน้าที่แสดงผลเท่านั้น
+
+## โหมดที่รองรับ
+
+| โหมด | ฟิลด์ | สมการกระแสฐาน |
+|---|---|---|
+| Voltage Divider Bias (`divider`) | `VCC`, `R1`, `R2`, `RC`, `RE`, `β`, `VBE` | `IB = (VTH − VBE) / (RTH + (β + 1)RE)` |
+| Fixed Bias (`fixed`) | `VCC`, `RB`, `RC`, `β`, `VBE` | `IB = (VCC − VBE) / RB` |
+| Emitter Bias (`emitter`) | `VCC`, `RB`, `RC`, `RE`, `β`, `VBE` | `IB = (VCC − VBE) / (RB + (β + 1)RE)` |
+
+ทุกโหมดใช้ `IC = β·IB`, `IE = (β + 1)·IB`, `VB = VE + VBE`, `VC = VCC − IC·RC`,
+`VCE = VC − VE` และโหมด Fixed ใช้ `VE = 0` (อิมิตเตอร์ต่อลงกราวด์)
+
+หน้าเว็บแสดงเฉพาะช่องของโหมดที่เลือก ตรวจเฉพาะช่องเหล่านั้น แปลง `k`/`M`
+เป็น Ω ครั้งเดียวก่อนเข้าสมการ และแสดงแรงดันเป็น V กับกระแสเป็น mA (พร้อมหน่วย SI)
+
+## คำเตือนเมื่อแบบจำลอง Forward Active อาจใช้ไม่ได้
+
+ถ้าอินพุตถูกต้องแต่ผลคำนวณได้ `IB ≤ 0` หรือ `VCE ≤ 0.2 V` โปรแกรมจะไม่คำนวณโซน
+Cutoff/Saturation ใหม่ แต่จะติด badge `Model warning` พร้อมข้อความ
+`แบบจำลอง Forward Active อาจใช้ไม่ได้` และบอกเงื่อนไขที่ทำให้เตือน
+(ค่าที่คำนวณได้ยังแสดงตามจริง ไม่ clamp)
+
+## วิธีรัน
+
+```bash
+python -m pip install -r requirements.txt
+python app.py
+```
+
+เปิด <http://127.0.0.1:5000> แล้วเลือกโหมดที่ต้องการ
+
+## การตรวจสอบ
+
+ตารางผล A1–A5, ค่าอ้างอิงที่คำนวณมือ, A1 baseline ก่อนแก้โค้ด และหลักฐานจาก
+OpenCode Browser อยู่ใน [`docs/validation.md`](docs/validation.md)
+(ไฟล์ภาพอยู่ใน [`docs/evidence/`](docs/evidence/))
+
+## แหล่งเก็บโค้ด
+
+- GitHub: <https://github.com/B6807757/Gitlab>
+- Commit ที่มีโค้ด Lab 03: `a698156` (`76314be` = mode dispatch/UI, `a698156` = CSS)
+
+## ส่วนที่ AI ช่วย
+
+AI เขียนฟังก์ชัน `analyze_fixed`/`analyze_emitter` และ validator, mode dispatch ใน
+`app.py`, template/SVG ของโหมดใหม่, CSS และร่างเอกสาร `docs/validation.md`
+นักศึกษาเป็นผู้ตรวจสมการและหน่วยเทียบใบงาน ตรวจค่าอ้างอิง A1–A5 (รวม A4 = 8.03 V)
+และทวนผลบนเบราว์เซอร์จริงอย่างน้อยหนึ่งกรณี
+
