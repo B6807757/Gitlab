@@ -99,6 +99,51 @@ h1 {
   background: #1e40af;
 }
 
+.mode-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem;
+  margin: 1rem 0 0;
+}
+
+.mode-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.mode-form select {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: 1rem/1.2 inherit;
+}
+
+.mode-form select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.mode-form button {
+  padding: 0.5rem 1rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mode-form button:hover {
+  background: #1e40af;
+}
+
 .error {
   margin: 0 0 1rem;
   padding: 0.7rem 0.9rem;
@@ -210,6 +255,10 @@ h1 {
   background: var(--cutoff);
 }
 
+.badge-model_warning {
+  background: var(--saturation);
+}
+
 .verdict {
   margin: 0 0 0.9rem;
   padding: 0.45rem 0.7rem;
@@ -237,6 +286,12 @@ h1 {
 .verdict-cutoff {
   color: var(--cutoff);
   background: #f1f5f9;
+}
+
+.verdict-model {
+  color: var(--saturation);
+  background: var(--warn-bg);
+  border-left-color: var(--warn-line);
 }
 
 .quantities {
