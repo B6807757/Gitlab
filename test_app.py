@@ -42,6 +42,7 @@ class TestRoutes(unittest.TestCase):
 
 
 FORM = {
+    "mode": "divider",
     "vcc": "12",
     "r1": "47k",
     "r2": "10k",

@@ -9,26 +9,47 @@
 <body>
   <main>
     <h1>BJT Common-Emitter DC Bias <span class="course">ENG29 2121</span></h1>
-    <p class="hint">วงจรไบแอสแบบแบ่งแรงดัน · หน่วย V, Ω และ β (ไม่มีหน่วย)</p>
+
+    {% if mode %}
+    <p class="hint">{{ mode_defs[mode].hint }}</p>
+
+    <form method="get" class="mode-form">
+      <label for="mode-select">วงจรไบอัส</label>
+      <select id="mode-select" name="mode">
+        {% for key in mode_order %}
+        <option value="{{ key }}"{% if key == mode %} selected{% endif %}>{{ mode_defs[key].label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">เปลี่ยนโหมด</button>
+    </form>
 
     <div class="layout">
       <div class="primary">
         <form method="post" class="bias-form">
+          <input type="hidden" name="mode" value="{{ mode }}">
           <label>แรงดันไฟเลี้ยง VCC (V)
             <input name="vcc" value="{{ raw.vcc }}" inputmode="decimal">
           </label>
+          {% if mode == "divider" %}
           <label>R1 (Ω)
             <input name="r1" value="{{ raw.r1 }}" inputmode="decimal">
           </label>
           <label>R2 (Ω)
             <input name="r2" value="{{ raw.r2 }}" inputmode="decimal">
           </label>
+          {% else %}
+          <label>RB (Ω)
+            <input name="rb" value="{{ raw.rb }}" inputmode="decimal">
+          </label>
+          {% endif %}
           <label>RC (Ω)
             <input name="rc" value="{{ raw.rc }}" inputmode="decimal">
           </label>
+          {% if mode != "fixed" %}
           <label>RE (Ω)
             <input name="re" value="{{ raw.re }}" inputmode="decimal">
           </label>
+          {% endif %}
           <label>β
             <input name="beta" value="{{ raw.beta }}" inputmode="decimal">
           </label>
@@ -45,8 +66,15 @@
         {% block results %}
         {% if result %}
         <section class="results">
-          <h2>จุดทำงาน DC <span class="badge badge-{{ result.region }}">{{ result.region|capitalize }}</span></h2>
+          <h2>จุดทำงาน DC · {{ mode_label }}
+            {% if result.region == "model_warning" %}
+            <span class="badge badge-model_warning">Model warning</span>
+            {% else %}
+            <span class="badge badge-{{ result.region }}">{{ result.region|capitalize }}</span>
+            {% endif %}
+          </h2>
 
+          {% if mode == "divider" %}
           {% if result.region == "active" %}
           {% if result.warnings %}
           <p class="verdict verdict-low">โซนแอกทีฟ · headroom ต่ำ · VCE = {{ format_voltage(result.vce) }}</p>
@@ -57,6 +85,11 @@
           <p class="verdict verdict-saturation">Q-point อยู่ในโซนอิ่มตัว · IC(sat) ≈ {{ format_current(result.ic_sat) }}</p>
           {% else %}
           <p class="verdict verdict-cutoff">ทรานซิสเตอร์ตัดการทำงาน · IC = 0</p>
+          {% endif %}
+          {% elif result.region == "active" %}
+          <p class="verdict verdict-active">โซนแอกทีฟตามแบบจำลอง · VCE = {{ format_voltage(result.vce) }}</p>
+          {% else %}
+          <p class="verdict verdict-model">แบบจำลอง Forward Active อาจใช้ไม่ได้ · VCE = {{ format_voltage(result.vce) }}</p>
           {% endif %}
 
           <dl class="quantities">
@@ -70,9 +103,11 @@
             <div><dt>VBE</dt><dd>{{ format_voltage(result.inputs.vbe) }}</dd></div>
           </dl>
 
+          {% if mode == "divider" %}
           <p class="intermediates">
             VBB = {{ format_voltage(result.vbb) }} · RB = {{ format_resistance(result.rb) }}
           </p>
+          {% endif %}
 
           {% if result.warnings %}
           <ul class="warnings">
@@ -80,6 +115,7 @@
           </ul>
           {% endif %}
 
+          {% if mode == "divider" %}
           {% if result.ic_sat is not none %}
           <p class="limit">IC(sat) ≈ {{ format_current(result.ic_sat) }}</p>
           {% endif %}
@@ -105,12 +141,14 @@
             <tr><th>สูตรประมาณ</th><td>— <span class="muted">ไม่มีผล (Q-point ไม่อยู่ในโหมดแอกทีฟ)</span></td></tr>
             {% endif %}
           </table>
+          {% endif %}
         </section>
         {% endif %}
         {% endblock %}
       </div>
 
       <section class="schematic">
+        {% if mode == "divider" %}
         <svg viewBox="0 0 340 340" role="img" aria-labelledby="schematic-title">
           <title id="schematic-title">วงจรไบแอสแบบแบ่งแรงดัน common-emitter</title>
 
@@ -159,11 +197,95 @@
           <line class="wire" x1="145" y1="320" x2="150" y2="320"/>
           <circle class="node" cx="147" cy="300" r="3"/>
         </svg>
+        {% elif mode == "fixed" %}
+        <svg viewBox="0 0 340 340" role="img" aria-labelledby="schematic-title">
+          <title id="schematic-title">วงจรไบแอสแบบ Fixed Bias common-emitter</title>
+
+          <line class="wire" x1="70" y1="36" x2="225" y2="36"/>
+          <text class="label" x="70" y="24">VCC = {{ format_voltage(diagram.vcc) }}</text>
+
+          <line class="wire" x1="70" y1="36" x2="70" y2="60"/>
+          <rect class="part" x="61" y="60" width="18" height="40" rx="2"/>
+          <line class="wire" x1="70" y1="100" x2="70" y2="140"/>
+          <text class="label" x="88" y="78">RB</text>
+          <text class="value" x="88" y="94">{{ format_resistance(diagram.rb) }}</text>
+
+          <line class="wire" x1="70" y1="140" x2="190" y2="140"/>
+          <circle class="node" cx="70" cy="140" r="3"/>
+
+          <line class="wire" x1="225" y1="36" x2="225" y2="60"/>
+          <rect class="part" x="216" y="60" width="18" height="40" rx="2"/>
+          <line class="wire" x1="225" y1="100" x2="225" y2="112"/>
+          <text class="label" x="242" y="78">RC</text>
+          <text class="value" x="242" y="94">{{ format_resistance(diagram.rc) }}</text>
+
+          <line class="wire" x1="190" y1="122" x2="190" y2="158"/>
+          <line class="wire" x1="190" y1="130" x2="225" y2="112"/>
+          <line class="wire" x1="190" y1="150" x2="225" y2="168"/>
+          <polygon class="node" points="221.4,166.2 208.5,165.1 213.1,156.3"/>
+          <circle class="node" cx="225" cy="112" r="3"/>
+          <circle class="node" cx="225" cy="168" r="3"/>
+          <text class="label" x="242" y="140">Q1</text>
+          <text class="value" x="242" y="156">NPN β = {{ "%g"|format(diagram.beta) }}</text>
+
+          <line class="wire" x1="225" y1="168" x2="225" y2="300"/>
+          <line class="wire" x1="197" y1="306" x2="253" y2="306"/>
+          <line class="wire" x1="204" y1="313" x2="246" y2="313"/>
+          <line class="wire" x1="211" y1="320" x2="239" y2="320"/>
+          <circle class="node" cx="225" cy="300" r="3"/>
+        </svg>
+        {% elif mode == "emitter" %}
+        <svg viewBox="0 0 340 340" role="img" aria-labelledby="schematic-title">
+          <title id="schematic-title">วงจรไบแอสแบบ Emitter Bias common-emitter</title>
+
+          <line class="wire" x1="70" y1="36" x2="225" y2="36"/>
+          <text class="label" x="70" y="24">VCC = {{ format_voltage(diagram.vcc) }}</text>
+
+          <line class="wire" x1="70" y1="36" x2="70" y2="60"/>
+          <rect class="part" x="61" y="60" width="18" height="40" rx="2"/>
+          <line class="wire" x1="70" y1="100" x2="70" y2="140"/>
+          <text class="label" x="88" y="78">RB</text>
+          <text class="value" x="88" y="94">{{ format_resistance(diagram.rb) }}</text>
+
+          <line class="wire" x1="70" y1="140" x2="190" y2="140"/>
+          <circle class="node" cx="70" cy="140" r="3"/>
+
+          <line class="wire" x1="225" y1="36" x2="225" y2="60"/>
+          <rect class="part" x="216" y="60" width="18" height="40" rx="2"/>
+          <line class="wire" x1="225" y1="100" x2="225" y2="112"/>
+          <text class="label" x="242" y="78">RC</text>
+          <text class="value" x="242" y="94">{{ format_resistance(diagram.rc) }}</text>
+
+          <line class="wire" x1="190" y1="122" x2="190" y2="158"/>
+          <line class="wire" x1="190" y1="130" x2="225" y2="112"/>
+          <line class="wire" x1="190" y1="150" x2="225" y2="168"/>
+          <polygon class="node" points="221.4,166.2 208.5,165.1 213.1,156.3"/>
+          <circle class="node" cx="225" cy="112" r="3"/>
+          <circle class="node" cx="225" cy="168" r="3"/>
+          <text class="label" x="242" y="140">Q1</text>
+          <text class="value" x="242" y="156">NPN β = {{ "%g"|format(diagram.beta) }}</text>
+
+          <line class="wire" x1="225" y1="168" x2="225" y2="200"/>
+          <rect class="part" x="216" y="200" width="18" height="40" rx="2"/>
+          <line class="wire" x1="225" y1="240" x2="225" y2="300"/>
+          <text class="label" x="242" y="218">RE</text>
+          <text class="value" x="242" y="234">{{ format_resistance(diagram.re) }}</text>
+
+          <line class="wire" x1="197" y1="306" x2="253" y2="306"/>
+          <line class="wire" x1="204" y1="313" x2="246" y2="313"/>
+          <line class="wire" x1="211" y1="320" x2="239" y2="320"/>
+          <circle class="node" cx="225" cy="300" r="3"/>
+        </svg>
+        {% endif %}
         {% if error %}
         <p class="caption">แผนภาพแสดงค่าตั้งต้น — แก้ไขค่าที่ไม่ถูกต้องก่อน</p>
         {% endif %}
       </section>
     </div>
+    {% else %}
+    <p class="error">{{ error }}</p>
+    <p><a href="{{ url_for('index') }}">กลับไปหน้าเริ่มต้น (Voltage Divider Bias)</a></p>
+    {% endif %}
   </main>
 </body>
 </html>
