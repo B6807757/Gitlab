@@ -150,3 +150,60 @@ AI เขียนฟังก์ชัน `analyze_fixed`/`analyze_emitter` แ
 นักศึกษาเป็นผู้ตรวจสมการและหน่วยเทียบใบงาน ตรวจค่าอ้างอิง A1–A5 (รวม A4 = 8.03 V)
 และทวนผลบนเบราว์เซอร์จริงอย่างน้อยหนึ่งกรณี
 
+---
+
+# ENG29 2121 — Lab 04: CE Amplifier Simulator
+
+ต่อยอดจาก Lab 03 ด้วยหน้า `/simulator` ที่รัน **ngspice จริง** บนวงจรอ้างอิง
+Common-Emitter voltage-divider (2N3904) แล้วอ่านผลจาก log ที่เกิดจากรอบนั้น ๆ
+ไม่มีข้อมูล/graf สำเร็จรูปและไม่ได้ปิดบังข้อผิดพลาดของ engine
+
+## ติดตั้ง (เครื่องใหม่ / หลังโคลน)
+
+```bash
+python -m pip install -r requirements.txt
+python app.py
+# เปิด http://127.0.0.1:5000/simulator
+```
+
+Lab 04 ต้องการ ngspice เพิ่มจาก Lab 03:
+
+1. ติดตั้ง ngspice (Windows ที่ใช้พัฒนา: ngspice-33 64-bit) แล้วเพิ่ม `ngspice.exe`
+   ลง `PATH` **หรือ** ตั้งตัวแปร `NGSPICE_EXE` ให้ชี้ถึง file นั้น เช่น
+   `set NGSPICE_EXE=C:\path\to\ngspice.exe`
+2. หน้า `/simulator` จะแสดง path + version ของ engine ที่ตรวจพบทันที
+   ถ้าไม่พบจะแสดงข้อความ `ยังไม่พบ ngspice` และไม่มีผลลัพธ์/กราฟปลอม
+
+โคลนไปทำต่อเครื่องอื่นได้ปกติ (`git clone https://github.com/B6807757/Gitlab`)
+เฉพาะ ngspice + Flask ต้องมีบนเครื่องนั้นด้วย เพราะผลทั้งหมดรันจากเครื่องที่ใช้เปิดเว็บ
+
+## สิ่งที่หน้า `/simulator` ทำ
+
+| ปุ่ม | สิ่งที่รัน | ผลที่แสดง |
+|---|---|---|
+| `Run DC (.op)` | ngspice `.op` | ตาราง VB/VE/VC/VCE/IC จาก SPICE เทียบกับสมการประมาณ (β/VBE ที่กรอก) พร้อมผลต่าง — ไม่บังคับให้ตัวเลขเท่ากัน |
+| `Run AC (.ac)` | `.ac dec 20 1 100meg` | Bode (dB + เฟสองศา) จาก `vm/vp(5), vm/vp(6)`, gain ที่ 1 kHz และ fL/fH แบบ −3 dB (ถ้าไม่ตัดในช่วงสแกนจะขึ้น `not determined in sweep range`) |
+| `Run Transient (.tran)` | `.tran` ตามความถี่ source | waveform Vin/Vout, Vpp, ตรวจการกลับเฟส, หน้าต่างเวลา 5 ms หรือ 3 คาบ (แล้วแต่ค่าที่มากกว่า) และ step ≥ 50 จุด/คาบ |
+
+ค่าเริ่มต้นตามใบงาน: `VCC=12 V`, `R1=100k`, `R2=22k`, `RC=2.2k`, `RE=1k`,
+`RL=10k`, `CIN=COUT=10u`, source `10 mV peak, 1 kHz`, analytical `β=150`, `VBE=0.70 V`
+
+โมเดล BJT คือ `Q2N3904` (LTspice Standard.bjt, mfg=Philips, `BF=300`, มี Early effect)
+ที่มาและ netlist ที่รันจริง + ngspice log ดิบของรอบนั้นเปิดได้จาก `<details>` ใต้ผลลัพธ์
+
+## ไฟล์ที่เพิ่มจาก Lab 03
+
+| ไฟล์ | หน้าที่ |
+|---|---|
+| `spice_engine.py` | validate ค่า, สร้าง netlist, หา/รัน ngspice, parse `.op`/`.ac`/`.tran` จาก log |
+| `plots.py` | วาด Bode และ waveform เป็น inline SVG จากข้อมูลที่ parse ได้เท่านั้น |
+| `templates/simulator.html`, `static/style.css` | หน้า `/simulator` (server-rendered ไม่ใช้ JavaScript) |
+| `test_spice_engine.py`, `test_plots.py`, `test_simulator_app.py` | ชุดทดสอบของ Lab 04 |
+
+การแปลงหน่วย: resistances รับ `k`/`M`, capacitances รับ `p`/`n`/`u`/`µ`/`m` (ตามด้วย `F` ได้)
+`RE = 0` ถูกปฏิเสธก่อนสร้าง netlist และแสดง error โดยไม่มีกราฟ/ป้าย Success ปลอม
+
+รายละเอียดออกแบบ: [`docs/superpowers/specs/2026-11-24-lab04-ce-amplifier-simulator-design.md`](docs/superpowers/specs/2026-11-24-lab04-ce-amplifier-simulator-design.md)
+แผนทำงาน: [`docs/superpowers/plans/2026-11-24-lab04-ce-amplifier-simulator.md`](docs/superpowers/plans/2026-11-24-lab04-ce-amplifier-simulator.md)
+หลักฐานตรวจรับ: [`docs/validation.md`](docs/validation.md)
+
