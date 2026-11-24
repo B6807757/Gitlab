@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CE Amplifier Simulator — ENG29 2121</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="sim-main">
+    <header class="sim-header">
+      <p class="kicker">ENG29 2121 · LAB 04</p>
+      <h1>CE Amplifier Simulator <span class="course">v1</span></h1>
+      <p class="hint">
+        วงจรอ้างอิง Common-Emitter Voltage Divider · รัน ngspice จริง (.op / .ac / .tran)
+        · ผล SPICE แยกจากสมการประมาณ
+      </p>
+      <p class="sim-link"><a href="{{ url_for('index') }}">← กลับไป Lab 03 (DC Bias)</a></p>
+    </header>
+
+    <section class="engine-box">
+      <p>
+        <strong>Simulation engine:</strong>
+        {% if engine_path %}
+          <span class="mono">{{ engine_path }}</span> · {{ engine_version }}
+        {% else %}
+          <span class="engine-missing">ยังไม่พบ ngspice — ตั้งค่า NGSPICE_EXE ให้ชี้ไปที่ ngspice.exe</span>
+        {% endif %}
+      </p>
+      <p><strong>BJT model:</strong> {{ model_name }} — <span class="mono">{{ model_source }}</span></p>
+    </section>
+
+    <form method="post" class="sim-form">
+      <fieldset>
+        <legend>วงจรอ้างอิง (V, Ω, F)</legend>
+        <div class="field-grid">
+          <label>VCC (V) <input name="vcc" value="{{ raw.vcc }}" inputmode="decimal"></label>
+          <label>R1 (Ω) <input name="r1" value="{{ raw.r1 }}" inputmode="decimal"></label>
+          <label>R2 (Ω) <input name="r2" value="{{ raw.r2 }}" inputmode="decimal"></label>
+          <label>RC (Ω) <input name="rc" value="{{ raw.rc }}" inputmode="decimal"></label>
+          <label>RE (Ω) <input name="re" value="{{ raw.re }}" inputmode="decimal"></label>
+          <label>RL (Ω) <input name="rl" value="{{ raw.rl }}" inputmode="decimal"></label>
+          <label>CIN (F) <input name="cin" value="{{ raw.cin }}" inputmode="decimal"></label>
+          <label>COUT (F) <input name="cout" value="{{ raw.cout }}" inputmode="decimal"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>แหล่งสัญญาณ (SIN)</legend>
+        <div class="field-grid">
+          <label>Amplitude (mV peak) <input name="amp_mv" value="{{ raw.amp_mv }}" inputmode="decimal"></label>
+          <label>Frequency (Hz) <input name="freq" value="{{ raw.freq }}" inputmode="decimal"></label>
+        </div>
+        <p class="hint">Transient ใช้หน้าต่าง 5 ms หรือ 3 คาบ (แล้วแต่ค่าที่มากกว่า) และ step ให้ ≥ 50 จุดต่อคาบ</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Analytical reference</legend>
+        <p class="hint">
+          ใช้กับการคำนวณ Analytical เท่านั้น — ผล SPICE ใช้ BF=300 จากโมเดล {{ model_name }}
+          การเปลี่ยน β/VBE ที่นี่ไม่เปลี่ยนผล ngspice
+        </p>
+        <div class="field-grid">
+          <label>β (Analytical) <input name="beta" value="{{ raw.beta }}" inputmode="decimal"></label>
+          <label>VBE (V, Analytical) <input name="vbe" value="{{ raw.vbe }}" inputmode="decimal"></label>
+        </div>
+      </fieldset>
+
+      <div class="run-buttons">
+        <button type="submit" name="analysis" value="dc">Run DC (.op)</button>
+        <button type="submit" name="analysis" value="ac">Run AC (.ac)</button>
+        <button type="submit" name="analysis" value="tran">Run Transient (.tran)</button>
+      </div>
+    </form>
+
+    {% if error %}
+    <div class="error" role="alert"><strong>Error:</strong> {{ error }}</div>
+    {% endif %}
+
+    {% if result %}
+    <section class="status">
+      <span class="badge badge-success">Success</span>
+      <span>{{ analysis_label }}</span>
+      <span>· engine {{ engine_version }}</span>
+      <span>· model {{ model_name }}</span>
+      <span>· {{ "%.2f"|format(result.duration_s) }} s</span>
+    </section>
+
+    {% if analysis == "dc" %}
+    <section class="results">
+      <h2>DC Operating Point (.op)</h2>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>ปริมาณ</th><th>ngspice (SPICE)</th><th>สมการประมาณ (Analytical)</th><th>ผลต่าง</th><th>%</th></tr>
+          </thead>
+          <tbody>
+            {% for row in dc_rows %}
+            <tr>
+              <th scope="row">{{ row.label }}</th>
+              <td>{{ row.spice }}</td>
+              <td>{{ row.reference }}</td>
+              <td>{{ row.delta }}</td>
+              <td>{{ row.percent }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if analytical_error %}<p class="hint">{{ analytical_error }}</p>{% endif %}
+      <p class="hint">
+        ผลต่างเกิดจากสมมติฐานต่างกัน: Analytical ใช้ β={{ raw.beta }} และ VBE={{ raw.vbe }} V คงที่;
+        SPICE ใช้โมเดล {{ model_name }} (BF=300, Early effect) — ไม่ได้บังคับให้เท่ากันทุกหลัก
+      </p>
+    </section>
+    {% endif %}
+
+    {% if analysis == "ac" and ac_summary %}
+    <section class="results">
+      <h2>AC Frequency Response (.ac)</h2>
+      <div class="table-scroll">
+        <table>
+          <tbody>
+            <tr><th scope="row">Gain ที่ 1 kHz</th><td>{{ ac_summary.gain }} V/V</td></tr>
+            <tr><th scope="row">Gain ที่ 1 kHz</th><td>{{ ac_summary.gain_db }} dB</td></tr>
+            <tr><th scope="row">Phase ที่ 1 kHz</th><td>{{ ac_summary.phase }}°</td></tr>
+            <tr><th scope="row">fL (−3 dB)</th><td>{{ ac_summary.f_low }}</td></tr>
+            <tr><th scope="row">fH (−3 dB)</th><td>{{ ac_summary.f_high }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="hint">Gain = |V(6)/V(5)| โดย V(5) คือ source ก่อน CIN; เฟสอ้างอิงจาก V(5)</p>
+      {{ svg|safe }}
+    </section>
+    {% endif %}
+
+    {% if analysis == "tran" and tran_summary %}
+    <section class="results">
+      <h2>Transient Waveform (.tran)</h2>
+      <div class="table-scroll">
+        <table>
+          <tbody>
+            <tr><th scope="row">Vin peak-to-peak</th><td>{{ tran_summary.vin_pp }} mV</td></tr>
+            <tr><th scope="row">Vout peak-to-peak</th><td>{{ tran_summary.vout_pp }} mV</td></tr>
+            <tr><th scope="row">ความสัมพันธ์เฟส</th><td>{{ tran_summary.inverted }}</td></tr>
+            <tr><th scope="row">หน้าต่างเวลา</th><td>{{ tran_summary.window }} ms</td></tr>
+            <tr><th scope="row">Step</th><td>{{ tran_summary.step }} µs</td></tr>
+          </tbody>
+        </table>
+      </div>
+      {{ svg|safe }}
+    </section>
+    {% endif %}
+
+    <details>
+      <summary>Netlist ที่รันจริง</summary>
+      <pre class="mono">{{ result.netlist }}</pre>
+    </details>
+    <details>
+      <summary>ngspice log (ผลดิบของรอบนี้)</summary>
+      <pre class="mono">{{ result.log }}</pre>
+    </details>
+    {% endif %}
+
+    <footer class="sim-footer">
+      <p class="hint">
+        ตัวเลขทั้งหมดในหน้านี้มาจาก ngspice log ของรอบที่กดรัน — ไม่มีกราฟหรือค่าสำเร็จรูป
+        · โมเดล BJT: {{ model_name }}
+      </p>
+    </footer>
+  </main>
+</body>
+</html>

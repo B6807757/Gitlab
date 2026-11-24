@@ -370,3 +370,206 @@ h1 {
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Lab 04: CE Amplifier Simulator ---- */
+
+.sim-main {
+  max-width: 1000px;
+}
+
+.kicker {
+  margin: 0 0 0.25rem;
+  color: #047857;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.sim-header .hint {
+  max-width: 70ch;
+}
+
+.sim-link a {
+  color: var(--accent);
+}
+
+.engine-box {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+
+.engine-box p {
+  margin: 0.25rem 0;
+}
+
+.engine-missing {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.mono {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  word-break: break-word;
+}
+
+.sim-form fieldset {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.sim-form legend {
+  padding: 0 0.35rem;
+  font-weight: 600;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.field-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.field-grid input {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: 1rem/1.2 ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.field-grid input:focus {
+  outline: 2px solid #bfdbfe;
+  border-color: var(--accent);
+}
+
+.run-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.run-buttons button {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.run-buttons button:hover {
+  background: #1e40af;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 1rem 0;
+  padding: 0.7rem 0.9rem;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.badge-success {
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  background: #166534;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.results {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.results h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.results table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.results th,
+.results td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.results thead th {
+  background: #eef3f8;
+}
+
+.plot {
+  width: 100%;
+  height: auto;
+  margin-top: 1rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.sim-main details {
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.sim-main pre {
+  overflow-x: auto;
+  padding: 0.75rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.sim-footer {
+  margin-top: 2rem;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 1rem 0.6rem 3rem;
+  }
+
+  .run-buttons button {
+    width: 100%;
+  }
+}
