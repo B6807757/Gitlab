@@ -9,8 +9,7 @@
 <body>
   <main class="sim-main">
     <header class="sim-header">
-      <p class="kicker">ENG29 2121 · LAB 04</p>
-      <h1>CE Amplifier Simulator <span class="course">v1</span></h1>
+      <h1>CE Amplifier Simulator <span class="course">ENG29 2121 · LAB 04</span></h1>
       <p class="hint">
         วงจรอ้างอิง Common-Emitter Voltage Divider · รัน ngspice จริง (.op / .ac / .tran)
         · ผล SPICE แยกจากสมการประมาณ
@@ -121,8 +120,8 @@
       <div class="table-scroll">
         <table>
           <tbody>
-            <tr><th scope="row">Gain ที่ 1 kHz</th><td>{{ ac_summary.gain }} V/V</td></tr>
-            <tr><th scope="row">Gain ที่ 1 kHz</th><td>{{ ac_summary.gain_db }} dB</td></tr>
+            <tr><th scope="row">Gain ที่ 1 kHz (V/V)</th><td>{{ ac_summary.gain }}</td></tr>
+            <tr><th scope="row">Gain ที่ 1 kHz (dB)</th><td>{{ ac_summary.gain_db }}</td></tr>
             <tr><th scope="row">Phase ที่ 1 kHz</th><td>{{ ac_summary.phase }}°</td></tr>
             <tr><th scope="row">fL (−3 dB)</th><td>{{ ac_summary.f_low }}</td></tr>
             <tr><th scope="row">fH (−3 dB)</th><td>{{ ac_summary.f_high }}</td></tr>

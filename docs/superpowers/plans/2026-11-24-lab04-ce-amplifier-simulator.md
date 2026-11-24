@@ -1,6 +1,6 @@
 # Lab 04 CE Amplifier Simulator Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extend the existing Lab 3 Flask BJT bias app with real ngspice `.op` / `.ac` / `.tran` simulation for one reference CE voltage-divider circuit, rendered as server-side SVG with honest error paths.
 
@@ -50,7 +50,7 @@
   - `validate_source(source: Source) -> None` (raises `ValueError`)
   - `build_netlist(circuit: Circuit, source: Source, analysis: str) -> str` (`analysis` in `"dc"`, `"ac"`, `"tran"`; raises `ValueError` otherwise)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 class TestNetlist(unittest.TestCase):
@@ -106,21 +106,21 @@ class TestEngineDiscovery(unittest.TestCase):
         self.assertEqual(engine_version(r"C:\x\bin\ngspice.exe"), "unknown")
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m unittest test_spice_engine -v`
 Expected: `ModuleNotFoundError: No module named 'spice_engine'`
 
-- [ ] **Step 3: Implement `spice_engine.py`**
+- [x] **Step 3: Implement `spice_engine.py`**
 
 Use `format(value, ".10g")` for every numeric value. Ranges: resistances and capacitors `> 0` and `<= 1e9`; VCC `0 < vcc <= 100`; amplitude `0 < amp <= 1.0` V; frequency `10 <= f <= 100e3` Hz. `find_engine` order: explicit → `NGSPICE_EXE` → `shutil.which("ngspice")` → known `%LOCALAPPDATA%\Programs\ngspice\ngspice-33-w7\ngspice.exe`. `engine_version` regex `ngspice[-_]?(\d+(?:\.\d+)*)` on the path, else `"unknown"`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m unittest test_spice_engine -v`
 Expected: all Task 1 tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add spice_engine.py test_spice_engine.py
@@ -143,7 +143,7 @@ git commit -m "feat: generate validated ngspice netlists"
   - `_invoke(netlist: str, exe: str, timeout: float) -> str` (returns log text; raises `SpiceRunError`)
   - `parse_dc(log: str, netlist: str, duration_s: float, engine_version: str) -> DcResult`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Use this fixture (exact ngspice-33 text) inside the test module:
 
@@ -199,12 +199,12 @@ class TestDc(unittest.TestCase):
         self.assertIn(".op", invoke.call_args.args[0])
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m unittest test_spice_engine -v`
 Expected: FAIL with `NameError` / `ImportError` for `parse_dc`, `run_dc`.
 
-- [ ] **Step 3: Implement runner and parser**
+- [x] **Step 3: Implement runner and parser**
 
 `_invoke` writes `circuit.cir` into `tempfile.TemporaryDirectory()`, runs
 `[exe, "-b", "-o", "run.log", "circuit.cir"]` with `cwd=tmp`, `capture_output=True`,
@@ -216,12 +216,12 @@ return code (include stderr/stdout tail), or empty log. Read `run.log` with
 1–4; find the `device q1` block and its `ic` line; raise `SpiceParseError` if anything
 is missing or non-finite.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m unittest test_spice_engine -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add spice_engine.py test_spice_engine.py
@@ -247,7 +247,7 @@ git commit -m "feat: run ngspice DC operating point and parse results"
   - `run_ac(...) -> AcResult`, `run_tran(...) -> TranResult`, `parse_ac(log, netlist, duration_s, engine_version) -> AcResult`, `parse_tran(...) -> TranResult`
   - `find_cutoffs(points: Sequence[AcPoint]) -> tuple[float | None, float | None]`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 AC_LOG = """
@@ -312,21 +312,21 @@ class TestTran(unittest.TestCase):
             parse_tran(TRAN_LOG.splitlines()[0] + "\n" + TRAN_LOG.splitlines()[2], "n", 0.0, "v")
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m unittest test_spice_engine -v`
 Expected: FAIL for missing `parse_ac` / `tran_timing`.
 
-- [ ] **Step 3: Implement AC/tran parsing and metrics**
+- [x] **Step 3: Implement AC/tran parsing and metrics**
 
 Parse tables by header line (`Index` + `frequency`/`time`), map column names to arrays, pair magnitude and phase tables by row index. Convert `vp` radians → degrees and wrap to `(-180, 180]`. `gain_db = 20*log10(gain)` (reject gain ≤ 0). `find_cutoffs` uses `max_gain / sqrt(2)` and log-frequency interpolation; return `None` when no crossing. Transient window/step per `tran_timing`; `vin_pp`/`vout_pp` over the last 50 % of samples; `inverted = covariance(vin, vout) < 0` over the same span.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m unittest test_spice_engine -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add spice_engine.py test_spice_engine.py
@@ -347,7 +347,7 @@ git commit -m "feat: parse ngspice AC and transient results"
   - `bode_svg(points: Sequence[AcPoint], *, width: int = 760, height: int = 440) -> str`
   - `transient_svg(points: Sequence[TranPoint], *, width: int = 760, height: int = 320) -> str`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 class TestBode(unittest.TestCase):
@@ -382,12 +382,12 @@ class TestTransient(unittest.TestCase):
         self.assertIn("<svg", transient_svg((TranPoint(0, 0, 0),)))
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m unittest test_plots -v`
 Expected: `ModuleNotFoundError: No module named 'plots'`.
 
-- [ ] **Step 3: Implement `plots.py`**
+- [x] **Step 3: Implement `plots.py`**
 
 Pure functions returning SVG strings. Helpers: `_scale`, `_ticks`, `_polyline`, `_axis`.
 Log-x for Bode (`log10` of frequency), decade ticks, magnitude panel 0–55 % height,
@@ -396,12 +396,12 @@ phase panel 55–100 %. Transient uses milliseconds. Pad a zero-span y-range by 
 Include `<title>` and `aria-label` for accessibility, plus a caption line
 `ngspice · Q2N3904` inside the SVG so provenance travels with the image.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m unittest test_plots -v`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add plots.py test_plots.py
@@ -427,7 +427,7 @@ git commit -m "feat: render ngspice results as SVG charts"
   - `run_simulation(circuit: Circuit, source: Source, analysis: str) -> DcResult | AcResult | TranResult` (module-level, dispatches to `run_dc` / `run_ac` / `run_tran`; tests patch `app.run_simulation`)
   - routes `GET /simulator`, `POST /simulator`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 class TestCapacitance(unittest.TestCase):
@@ -477,12 +477,12 @@ class TestSimulatorRoute(unittest.TestCase):
         self.assertIn("BJT Common-Emitter DC Bias", html)
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m unittest test_simulator_app -v`
 Expected: 404 for `/simulator`, `NameError` for `parse_capacitance`.
 
-- [ ] **Step 3: Implement route and template**
+- [x] **Step 3: Implement route and template**
 
 `POST` flow: read `analysis`; build `Circuit`/`Source` from parsed values; call
 `validate_circuit`/`validate_source`; on `ValueError` re-render with the error and the
@@ -499,12 +499,12 @@ three submit buttons, status box (engine/model/analysis/duration/result badge),
 results per analysis, `<details>` netlist + log, and a note that SPICE uses the model’s
 BF=300. All charts are `{{ svg|safe }}`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m unittest test_simulator_app -v` then `python -m unittest -v`
 Expected: new tests PASS and the original 34+ tests still PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app.py templates/simulator.html templates/index.html static/style.css test_simulator_app.py
@@ -523,18 +523,18 @@ git commit -m "feat: add CE amplifier simulator page"
 - Consumes: everything above.
 - Produces: reproducible instructions and honest B1–B8 evidence.
 
-- [ ] **Step 1: Install Flask and run the app**
+- [x] **Step 1: Install Flask and run the app**
 
 Run: `python -m pip install -r requirements.txt`, then `python app.py` in the background.
 Expected: server on <http://127.0.0.1:5000>; `/` and `/simulator` both return 200.
 
-- [ ] **Step 2: Verify the real engine end-to-end**
+- [x] **Step 2: Verify the real engine end-to-end**
 
 Run the integration checks with the real executable (no mocks) for DC, AC, tran.
 Expected: DC values match the fixture (`IC ≈ 1.417 mA`, `VCE ≈ 7.462 V`), AC returns
 161 points, tran returns ≥ 2000 points, each log contains `Q2N3904`.
 
-- [ ] **Step 3: UI critique/polish with Impeccable**
+- [x] **Step 3: UI critique/polish with Impeccable**
 
 Run `npx impeccable install` from the repo root, choose OpenCode + project scope, then
 load the `impeccable` skill and apply `critique` → `polish` to the running `/simulator`
@@ -542,14 +542,14 @@ page only. Keep calculations, plot data, units, and error states unchanged; do n
 replace real charts with placeholder art. If the installer needs an interactive prompt
 or fails, record `NOT RUN` with the reason and do a manual UI polish instead.
 
-- [ ] **Step 4: Browser acceptance B1–B8**
+- [x] **Step 4: Browser acceptance B1–B8**
 
 Use the OpenCode Browser tool on the running app. Execute B1–B8 exactly as the spec
 §5.11 table defines; capture desktop (~1280 px) and mobile (~390 px) screenshots for B8;
 save evidence under `docs/evidence/`. Record `NOT RUN` for Playwright MCP with the reason
 “ไม่ได้ติดตั้ง Playwright MCP; ใช้ OpenCode Browser ตามที่ผู้ใช้เลือก”.
 
-- [ ] **Step 5: Write `docs/validation.md`**
+- [x] **Step 5: Write `docs/validation.md`**
 
 Append a Lab 04 section with the table columns from the handout
 (`Case | Method | Input | Expected/Reference | Observed | Evidence | Status`), plus
@@ -557,13 +557,13 @@ ngspice version (`ngspice-33`), model card name and source, the analytical assum
 the observed SPICE/analytical deltas, and limitations (no `init file` warning,
 ngspice-33 `vp` quirk).
 
-- [ ] **Step 6: Update `README.md`**
+- [x] **Step 6: Update `README.md`**
 
 Add: what Lab 04 adds, ngspice install + `NGSPICE_EXE`, how to run the server, how to
 reach `/simulator`, the reference values, the model source, the 2N3904-vs-analytical
 BF difference, and the tested environment (Windows, Python 3.12.7, ngspice-33).
 
-- [ ] **Step 7: Final verification and push**
+- [x] **Step 7: Final verification and push**
 
 Run: `python -m unittest -v` → all tests PASS. Re-open both pages once more.
 Then:
@@ -574,6 +574,6 @@ git commit -m "docs: record Lab 04 validation and run steps"
 git push origin main
 ```
 
-- [ ] **Step 8: Report the commit SHA and how to reproduce**
+- [x] **Step 8: Report the commit SHA and how to reproduce**
 
 Print `git rev-parse HEAD` and the exact steps a classmate needs to run the app.

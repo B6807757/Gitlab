@@ -157,16 +157,22 @@ AI ช่วย:
 
 ## ตาราง B1–B8
 
-| กรณี | วิธีตรวจ | ผลที่เห็น | สถานะ |
-|---|---|---|---|
-| B1 | Lab 03 หน้า `/` ทั้ง 3 โหมด (หลักฐานเดิม A1–A5 + `test_app.py`/`test_bjt.py`) | Divider/Fixed/Emitter ยังคำนวณและสลับโหมดได้ `/simulator` มีลิงก์ไป-กลับ | ผ่าน (หลักฐาน Lab 03) |
-| B2 | `/simulator` ค่า default → `Run DC (.op)` | `Success`, engine `ngspice-33`, `Q2N3904`; SPICE `VB 2.084 V`, `VE 1.421 V`, `VC 8.883 V`, `VCE 7.462 V`, `IC 1.417 mA`; Analytical `IC 1.299 mA`, `VCE 7.834 V` แยกตารางต่างหาก + ผลต่าง `+9.1%` / `−4.8%` | ผ่าน |
-| B3 | เปลี่ยน `RE 1k → 2k` → `Run DC` ซ้ำ | `IC 1.417 → 0.737 mA`, `VCE 7.462 → 8.902 V`, `VE 1.421 → 1.478 V` — ค่าเปลี่ยนตามรันใหม่ ไม่ค้างค่าเดิม | ผ่าน |
-| B4 | `Run AC (.ac)` | gain 1 kHz `1.764 V/V = 4.93 dB`, phase `−179.9°`, `fL 1.75 Hz`, `fH not determined in sweep range`; SVG 161 จุด มีแกน `ความถี่ (Hz)`, `ขนาด (dB)`, `เฟส (องศา)` | ผ่าน |
-| B5 | `Run tran` ที่ `10 mV peak, 1 kHz` | `Vin 20.00 mVpp`, `Vout 35.27 mVpp`, `กลับเฟส (~180°)`, หน้าต่าง `5.00 ms`, step `2.50 µs`, 2008 จุด; SVG มีแกน `เวลา (ms)`, `แรงดัน (V)` และ legend `Vin`/`Vout` | ผ่าน |
-| B6 | เปลี่ยน amplitude `10 → 20 mV` → `Run tran` ซ้ำ | `Vin 40.00 mVpp`, `Vout 70.55 mVpp` (เพิ่มจาก 35.27) waveform ปรับตามค่าที่ตั้ง | ผ่าน |
-| B7 | ใส่ `RE = 0` → `Run DC` | ข้อความ `Error: ข้อมูลไม่ถูกต้อง: RE ต้องมากกว่า 0`, ไม่มี `<svg>`, ไม่มีป้าย `Success` ไม่มีผลเก่าหลงเหลือ | ผ่าน |
-| B8 | ตรวจ screenshot desktop ~1280 px และ mobile ~390 px | **NOT RUN** — ผู้ใช้ขอให้เลื่อนการเปิดแอป/ตรวจภาพไปทีหลัง ยังไม่มี screenshot ใหม่ของ Lab 04 | รอดำเนินการ |
+| Case | Method | Input | Expected / Reference | Observed | Evidence | Status |
+|---|---|---|---|---|---|---|
+| B1 | Lab 03 browser A1–A5 + `test_app.py`/`test_bjt.py` | Divider `12/100k/22k/2.2k/1k/β100/0.70`; Fixed `12/1M/2.2k/β100/0.70`; Emitter `12/1M/2.2k/1k/β100/0.70` | ทั้ง 3 โหมดคำนวณและสลับได้ ผลตรง A1–A5 | Divider/Fixed/Emitter ผ่าน A1–A5, มีลิงก์ไป-กลับ `/simulator` | Lab 03 A1–A5 ข้างบน + screenshot ใน `docs/evidence/lab03-*.jpeg` | ผ่าน |
+| B2 | `/simulator` → `Run DC (.op)` | default `12 V, 100k, 22k, 2.2k, 1k, 10k, 10u, 10u, 10 mV, 1 kHz` | ngspice รันสำเร็จและแสดง VB/VE/VC/VCE/IC แยกจาก Analytical | `Success`, `ngspice-33`, `Q2N3904`; SPICE `VB 2.084 V`, `VE 1.421 V`, `VC 8.883 V`, `VCE 7.462 V`, `IC 1.417 mA`; Analytical `IC 1.299 mA`, `VCE 7.834 V`; delta `+9.1%` / `−4.8%` | ข้อความบนหน้า + `<details>` netlist/log ของรันนี้ | ผ่าน |
+| B3 | เปลี่ยน RE แล้ว `Run DC` ซ้ำ | `RE 1k → 2k` (อย่างอื่นคงเดิม) | operating point เปลี่ยนตามผลรัน new | `IC 1.417 → 0.737 mA`, `VCE 7.462 → 8.902 V`, `VE 1.421 → 1.478 V` | ตาราง DC ของรันที่ 2 ใน browser | ผ่าน |
+| B4 | `Run AC (.ac)` | ค่า default, `.ac dec 20 1 100meg` | Bode มีแกน Hz/dB/องศา; fL/fH หรือข้อความ `not determined` | gain 1 kHz `1.764 V/V = 4.93 dB`, phase `−179.9°`, `fL 1.75 Hz`, `fH not determined in sweep range`; SVG 161 จุด มี `ความถี่ (Hz)`, `ขนาด (dB)`, `เฟส (องศา)` | SVG บนหน้า + log ดิบ | ผ่าน |
+| B5 | `Run tran (.tran)` | `10 mV peak, 1 kHz` | waveform Vin/Vout, แกน ms/V, กลับเฟส ~180° | `Vin 20.00 mVpp`, `Vout 35.27 mVpp`, `กลับเฟส (~180°)`, `5.00 ms`, step `2.50 µs`, 2008 จุด; แกน `เวลา (ms)`, `แรงดัน (V)`, legend `Vin`/`Vout` | SVG บนหน้า + log ดิบ | ผ่าน |
+| B6 | เปลี่ยน amplitude แล้ว `Run tran` ซ้ำ | `10 → 20 mV peak` | waveform/ค่าขยับตาม amplitude ใหม่ | `Vin 40.00 mVpp`, `Vout 70.55 mVpp` (เดิม 35.27) | ตาราง + SVG ของรันที่ 2 | ผ่าน |
+| B7 | ใส่ RE ผิดแล้ว `Run DC` | `RE = 0` | error ชัดเจน ไม่มีผล/กราฟเก่า ไม่มี Success ปลอม | `Error: ข้อมูลไม่ถูกต้อง: RE ต้องมากกว่า 0`, ไม่มี `<svg>`, ไม่มี `Success` | หน้า error ใน browser | ผ่าน |
+| B8 | Screenshot หน้า `/simulator` ที่ผล DC | desktop viewport จริงของ browser tool `1000×700`; mobile จำลองโดยจำกัดความกว้างเอกสารเป็น 390 px | อ่านปุ่ม/หน่วย/กราฟง่าย ไม่ถูกตัด | เก็บภาพแล้ว: desktop full-page `985×1571`, mobile-width `390×1035`; ข้อความปุ่ม แกน และตารางยังอ่านได้ | [`lab04-desktop-dc.png`](evidence/lab04-desktop-dc.png), [`lab04-mobile-dc.png`](evidence/lab04-mobile-dc.png) | ผ่าน (มีข้อจำกัดดูหมายเหตุ) |
+
+ข้อจำกัด B8: Browser tool ของ OpenCode ไม่มีคำสั่งเปลี่ยน viewport จริง จึงใช้ viewport
+desktop `1000×700` (ใกล้เคียง ~1280 px) และจำลองมือถือด้วยการจำกัดความกว้างเอกสาร
+เป็น 390 px — `@media (max-width:640px)` ไม่ได้ถูกทริกเกอร์จริง จึงยังไม่สามารถ
+อ้างว่าได้ทดสอบ media query บนอุปกรณ์ 390 px แท้ได้ ภาพที่เก็บเป็นหลักฐานความกว้าง/
+การอ่านได้ของเนื้อหา ไม่ใช่การจำลองอุปกรณ์เต็มรูปแบบ
 
 ## หมายเหตุผลที่ต้องแยก SPICE กับ Analytical
 
@@ -180,6 +186,24 @@ ngspice รันสำเร็จ อ่านตารางครบ แล�
 
 ปุ่ม `<details>` ใต้ผลลัพธ์แสดง **netlist ที่รันจริง** และ **ngspice log ดิบของรอบนั้น**
 ทุกครั้ง ไม่ใช่ข้อความตัวอย่าง — ตารางและกราฟด้านบนparse จาก log ชุดเดียวกัน
+
+## Impeccable (UI critique / polish)
+
+- ติดตั้งด้วย `npx --yes impeccable install` สำเร็จ (project scope, OpenCode, engine v0.1.27)
+- Critique: **DEGRADED: single-context** — Assessment A แบบ sub-agent ติด free usage limit
+  ของ provider จึงทำ design review แบบอินไลน์แทน; Assessment B (detector) รันครบ
+- Detector รอบแรกบน `/simulator` @390×844 พบ 3 รายการ: `kicker-above-heading`,
+  `body-text-viewport-edge`, `flat-type-hierarchy`
+- Polish ที่ทำเฉพาะหน้า `/simulator`: ลบ kicker เหนือ h1 (ย้าย "ENG29 2121 · LAB 04"
+  เข้า course badge), เพิ่มขนาด h1/h2 และ `text-wrap: balance`, เพิ่ม padding ของ footer,
+  เปลี่ยน error bar เป็น full border และเพิ่ม `:focus-visible` — ไม่แตะผลคำนวณ ข้อมูลกราฟ
+  หน่วย หรือข้อความ error
+- Detector รอบสุดท้ายบน URL @390×844: **0 findings**
+- `detect --json --changed` (สแกนไฟล์ที่เปลี่ยน) ยังเหลือ 4 findings: `side-tab` 3 จุดใน
+  Lab 03 CSS เดิม (นอกขอบเขต Lab 04 และ simulator override แล้ว) และ
+  `flat-type-hierarchy` เป็น false positive เพราะ detector อ่าน
+  `{{ url_for('static', filename='style.css') }}` ใน template ไม่ออก — หน้า render จริง
+  ผ่าน detector แล้ว
 
 ## ผลต่างจากที่วางแผนไว้
 

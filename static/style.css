@@ -573,3 +573,33 @@ h1 {
     width: 100%;
   }
 }
+
+/* ---- Lab 04: Impeccable polish pass ---- */
+
+.sim-header h1 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.results h2 {
+  font-size: 1.2rem;
+}
+
+.sim-footer p {
+  padding: 0 0.75rem;
+}
+
+.field-grid input:focus-visible,
+.run-buttons button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.sim-main .error {
+  border: 1px solid var(--error-line);
+  border-left: 0;
+}
+
+.sim-header h1 {
+  text-wrap: balance;
+}
