@@ -10,6 +10,9 @@ import math
 import os
 import re
 import shutil
+import subprocess
+import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -61,6 +64,19 @@ class Circuit:
 class Source:
     amplitude_v: float
     frequency_hz: float
+
+
+@dataclass(frozen=True)
+class DcResult:
+    vb: float
+    ve: float
+    vc: float
+    vce: float
+    ic: float
+    log: str
+    netlist: str
+    duration_s: float
+    engine_version: str
 
 
 _CIRCUIT_FIELDS = (
@@ -184,3 +200,115 @@ def find_engine(explicit: str | None = None) -> str:
 def engine_version(exe: str) -> str:
     match = re.search(r"ngspice[-_]?(\d+(?:\.\d+)*)", exe)
     return f"ngspice-{match.group(1)}" if match else "unknown"
+
+
+_NODE_RE = re.compile(r"^\s*V\((\d+)\)\s+(-?\d+(?:\.\d+)?[eE][+-]?\d+)\s*$")
+_Q1_RE = re.compile(r"^\s*device\s+q1\b", re.IGNORECASE)
+_DEVICE_RE = re.compile(r"^\s*device\b", re.IGNORECASE)
+_IC_RE = re.compile(r"^\s*ic\s+(\S+)\s*$")
+
+
+def _tail(text: str, limit: int = 600) -> str:
+    text = (text or "").strip()
+    return text[-limit:]
+
+
+def _invoke(netlist: str, exe: str, timeout: float) -> str:
+    with tempfile.TemporaryDirectory(prefix="lab04-ngspice-") as workdir:
+        netlist_path = Path(workdir) / "circuit.cir"
+        log_path = Path(workdir) / "run.log"
+        netlist_path.write_text(netlist, encoding="ascii")
+
+        try:
+            completed = subprocess.run(
+                [exe, "-b", "-o", "run.log", "circuit.cir"],
+                cwd=workdir,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise SpiceRunError(
+                f"ngspice ใช้เวลาเกิน {timeout:g} วินาที จึงหยุดการจำลอง"
+            ) from exc
+        except OSError as exc:
+            raise SpiceRunError(f"เรียก ngspice ไม่สำเร็จ: {exc}") from exc
+
+        if completed.returncode != 0:
+            detail = _tail(completed.stderr) or _tail(completed.stdout) or "ไม่มีข้อความจาก ngspice"
+            raise SpiceRunError(
+                f"ngspice จบด้วยรหัส {completed.returncode}: {detail}"
+            )
+
+        if not log_path.is_file():
+            raise SpiceRunError("ngspice ไม่ได้สร้าง run.log")
+
+        log = log_path.read_text(encoding="utf-8", errors="replace")
+        if not log.strip():
+            raise SpiceRunError("ngspice log ว่างเปล่า — ไม่มีผลการจำลอง")
+        return log
+
+
+def parse_dc(
+    log: str, netlist: str, duration_s: float, engine_version_text: str
+) -> DcResult:
+    nodes: dict[int, float] = {}
+    ic: float | None = None
+    in_q1 = False
+
+    for line in log.splitlines():
+        node = _NODE_RE.match(line)
+        if node:
+            nodes[int(node.group(1))] = float(node.group(2))
+            continue
+        if _Q1_RE.match(line):
+            in_q1 = True
+            continue
+        if in_q1 and _DEVICE_RE.match(line):
+            in_q1 = False
+            continue
+        if in_q1:
+            current = _IC_RE.match(line)
+            if current:
+                try:
+                    ic = float(current.group(1))
+                except ValueError:
+                    raise SpiceParseError("ค่า IC ของ q1 ไม่ใช่ตัวเลข") from None
+
+    missing = [f"V({n})" for n in (1, 2, 3, 4) if n not in nodes]
+    if missing:
+        raise SpiceParseError("ไม่พบ " + ", ".join(missing) + " ใน ngspice log")
+    if ic is None:
+        raise SpiceParseError("ไม่พบกระแส IC ของ q1 ใน ngspice log")
+
+    vb, vc, ve = nodes[2], nodes[3], nodes[4]
+    values = (vb, ve, vc, vb - ve, vc - ve, ic)
+    if not all(math.isfinite(value) for value in values):
+        raise SpiceParseError("ngspice คืนค่าที่ไม่ใช่จำนวนจริง")
+
+    return DcResult(
+        vb=vb,
+        ve=ve,
+        vc=vc,
+        vce=vc - ve,
+        ic=ic,
+        log=log,
+        netlist=netlist,
+        duration_s=duration_s,
+        engine_version=engine_version_text,
+    )
+
+
+def run_dc(
+    circuit: Circuit,
+    source: Source,
+    *,
+    exe: str | None = None,
+    timeout: float = 20.0,
+) -> DcResult:
+    netlist = build_netlist(circuit, source, "dc")
+    resolved = find_engine(exe)
+    started = time.perf_counter()
+    log = _invoke(netlist, resolved, timeout)
+    duration = time.perf_counter() - started
+    return parse_dc(log, netlist, duration, engine_version(resolved))

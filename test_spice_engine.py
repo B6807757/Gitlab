@@ -10,12 +10,36 @@ from spice_engine import (
     Circuit,
     Source,
     SpiceEngineNotFound,
+    SpiceParseError,
+    SpiceRunError,
+    _invoke,
     build_netlist,
     engine_version,
     find_engine,
+    parse_dc,
+    run_dc,
     validate_circuit,
     validate_source,
 )
+
+
+DC_LOG = """
+No. of Data Rows : 1
+	Node                                  Voltage
+	----                                  -------
+	V(6)                             0.000000e+00
+	V(5)                             0.000000e+00
+	V(4)                             1.421184e+00
+	V(3)                             8.883154e+00
+	V(2)                             2.083932e+00
+	V(1)                             1.200000e+01
+
+      device                    q1
+        model               q2n3904
+           ic            0.00141697
+           ib           4.43721e-06
+          vbe              0.662517
+"""
 
 
 class TestNetlist(unittest.TestCase):
@@ -95,6 +119,44 @@ class TestEngineDiscovery(unittest.TestCase):
     def test_version_from_install_folder_name(self):
         self.assertEqual(engine_version(r"C:\x\ngspice-33-w7\ngspice.exe"), "ngspice-33")
         self.assertEqual(engine_version(r"C:\x\bin\ngspice.exe"), "unknown")
+
+
+class TestDc(unittest.TestCase):
+    def test_parse_dc_reads_node_voltages_and_collector_current(self):
+        result = parse_dc(DC_LOG, "netlist", 0.05, "ngspice-33")
+        self.assertAlmostEqual(result.vb, 2.083932)
+        self.assertAlmostEqual(result.ve, 1.421184)
+        self.assertAlmostEqual(result.vc, 8.883154)
+        self.assertAlmostEqual(result.vce, 8.883154 - 1.421184)
+        self.assertAlmostEqual(result.ic, 0.00141697)
+
+    def test_missing_node_is_a_parse_error(self):
+        with self.assertRaises(SpiceParseError):
+            parse_dc(DC_LOG.replace("V(3)", "V(9)"), "netlist", 0.0, "ngspice-33")
+
+    def test_nonzero_exit_is_a_run_error(self):
+        bad = subprocess.CompletedProcess([], 1, "", "boom")
+        with mock.patch("spice_engine.subprocess.run", return_value=bad):
+            with self.assertRaisesRegex(SpiceRunError, "boom"):
+                _invoke("* netlist", sys.executable, 20)
+
+    def test_timeout_is_a_run_error(self):
+        with mock.patch(
+            "spice_engine.subprocess.run",
+            side_effect=subprocess.TimeoutExpired("ngspice", 20),
+        ):
+            with self.assertRaisesRegex(SpiceRunError, "20"):
+                _invoke("* netlist", sys.executable, 20)
+
+    def test_run_dc_writes_netlist_and_parses_log(self):
+        with mock.patch("spice_engine._invoke", return_value=DC_LOG) as invoke:
+            result = run_dc(
+                Circuit(12, 100e3, 22e3, 2.2e3, 1e3, 10e3, 1e-5, 1e-5),
+                Source(0.01, 1e3),
+                exe=sys.executable,
+            )
+        self.assertAlmostEqual(result.ic, 0.00141697)
+        self.assertIn(".op", invoke.call_args.args[0])
 
 
 if __name__ == "__main__":
