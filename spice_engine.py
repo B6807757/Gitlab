@@ -6,6 +6,7 @@ ngspice in batch mode, and read its text log. It never invents results.
 
 from __future__ import annotations
 
+import dataclasses
 import math
 import os
 import re
@@ -15,6 +16,7 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Sequence
 
 
 MODEL_NAME = "Q2N3904"
@@ -73,6 +75,47 @@ class DcResult:
     vc: float
     vce: float
     ic: float
+    log: str
+    netlist: str
+    duration_s: float
+    engine_version: str
+
+
+@dataclass(frozen=True)
+class AcPoint:
+    frequency_hz: float
+    gain: float
+    gain_db: float
+    phase_deg: float
+
+
+@dataclass(frozen=True)
+class AcResult:
+    points: tuple[AcPoint, ...]
+    gain_1khz: AcPoint | None
+    f_low_hz: float | None
+    f_high_hz: float | None
+    log: str
+    netlist: str
+    duration_s: float
+    engine_version: str
+
+
+@dataclass(frozen=True)
+class TranPoint:
+    time_s: float
+    vin: float
+    vout: float
+
+
+@dataclass(frozen=True)
+class TranResult:
+    points: tuple[TranPoint, ...]
+    vin_pp: float
+    vout_pp: float
+    inverted: bool
+    stop_s: float
+    step_s: float
     log: str
     netlist: str
     duration_s: float
@@ -312,3 +355,244 @@ def run_dc(
     log = _invoke(netlist, resolved, timeout)
     duration = time.perf_counter() - started
     return parse_dc(log, netlist, duration, engine_version(resolved))
+
+
+def _parse_tables(log: str) -> list[tuple[list[str], list[list[float]]]]:
+    lines = log.splitlines()
+    tables: list[tuple[list[str], list[list[float]]]] = []
+    index = 0
+
+    while index < len(lines):
+        header = lines[index].split()
+        if len(header) >= 3 and header[0] == "Index" and header[1] in ("frequency", "time"):
+            rows: list[list[float]] = []
+            index += 1
+            while index < len(lines):
+                stripped = lines[index].strip()
+                if not stripped:
+                    # ngspice paginates long tables: form feed + repeated header.
+                    probe = index + 1
+                    while probe < len(lines) and (
+                        not lines[probe].strip() or set(lines[probe].strip()) <= {"-"}
+                    ):
+                        probe += 1
+                    repeated = lines[probe].split() if probe < len(lines) else []
+                    if repeated and repeated[0] == "Index" and repeated[1:] == header[1:]:
+                        index = probe + 1
+                        continue
+                    break
+                if set(stripped) <= {"-"}:
+                    index += 1
+                    continue
+                parts = stripped.split()
+                if len(parts) != len(header) or not parts[0].isdigit():
+                    break
+                try:
+                    rows.append([float(part) for part in parts[1:]])
+                except ValueError:
+                    raise SpiceParseError(
+                        f"แถวข้อมูล ngspice ไม่ใช่ตัวเลข: {stripped[:80]}"
+                    ) from None
+                index += 1
+            tables.append((header, rows))
+            continue
+        index += 1
+
+    return tables
+
+
+def _find_table(
+    tables: list[tuple[list[str], list[list[float]]]], required: tuple[str, ...]
+) -> tuple[list[str], list[list[float]]] | None:
+    for header, rows in tables:
+        if all(name in header for name in required):
+            return header, rows
+    return None
+
+
+def _column(header: list[str], name: str) -> int:
+    return header.index(name) - 1
+
+
+def _wrap_deg(angle: float) -> float:
+    wrapped = (angle + 180.0) % 360.0 - 180.0
+    return 180.0 if wrapped == -180.0 else wrapped
+
+
+def find_cutoffs(points: "Sequence[AcPoint]") -> tuple[float | None, float | None]:
+    ordered = sorted(points, key=lambda point: point.frequency_hz)
+    if len(ordered) < 2:
+        return None, None
+
+    target = max(point.gain for point in ordered) / math.sqrt(2.0)
+    low: float | None = None
+    high: float | None = None
+
+    for previous, current in zip(ordered, ordered[1:]):
+        span = current.gain - previous.gain
+        if span == 0:
+            continue
+        fraction = (target - previous.gain) / span
+        if low is None and previous.gain < target <= current.gain:
+            low = _log_interpolate(previous.frequency_hz, current.frequency_hz, fraction)
+        if high is None and previous.gain >= target > current.gain:
+            high = _log_interpolate(previous.frequency_hz, current.frequency_hz, fraction)
+
+    return low, high
+
+
+def _log_interpolate(low_hz: float, high_hz: float, fraction: float) -> float:
+    log_low = math.log10(low_hz)
+    log_high = math.log10(high_hz)
+    return 10.0 ** (log_low + fraction * (log_high - log_low))
+
+
+def parse_ac(
+    log: str, netlist: str, duration_s: float, engine_version_text: str
+) -> AcResult:
+    tables = _parse_tables(log)
+    magnitude = _find_table(tables, ("vm(5)", "vm(6)"))
+    phase = _find_table(tables, ("vp(5)", "vp(6)"))
+
+    if magnitude is None:
+        raise SpiceParseError("ไม่พบตารางขนาด vm(5)/vm(6) ใน ngspice log")
+    if phase is None:
+        raise SpiceParseError("ไม่พบตารางเฟส vp(5)/vp(6) ใน ngspice log")
+
+    mag_header, mag_rows = magnitude
+    phase_header, phase_rows = phase
+    if len(mag_rows) != len(phase_rows):
+        raise SpiceParseError("ตารางขนาดและเฟสมีจำนวนแถวไม่เท่ากัน")
+    if len(mag_rows) < 2:
+        raise SpiceParseError("ตาราง AC มีข้อมูลน้อยกว่า 2 จุด")
+
+    f_col = _column(mag_header, "frequency")
+    v5_col = _column(mag_header, "vm(5)")
+    v6_col = _column(mag_header, "vm(6)")
+    p5_col = _column(phase_header, "vp(5)")
+    p6_col = _column(phase_header, "vp(6)")
+
+    points: list[AcPoint] = []
+    for mag_row, phase_row in zip(mag_rows, phase_rows):
+        frequency = mag_row[f_col]
+        v5 = mag_row[v5_col]
+        v6 = mag_row[v6_col]
+        if frequency <= 0 or v5 <= 0 or v6 <= 0:
+            raise SpiceParseError("ตาราง AC มีความถี่หรือขนาดไม่เป็นบวก")
+        gain = v6 / v5
+        phase_deg = _wrap_deg(math.degrees(phase_row[p6_col]) - math.degrees(phase_row[p5_col]))
+        points.append(AcPoint(frequency, gain, 20.0 * math.log10(gain), phase_deg))
+
+    if not all(
+        math.isfinite(value)
+        for point in points
+        for value in (point.frequency_hz, point.gain, point.gain_db, point.phase_deg)
+    ):
+        raise SpiceParseError("ตาราง AC มีค่าที่ไม่ใช่จำนวนจริง")
+
+    gain_1khz = next(
+        (point for point in points if abs(point.frequency_hz - 1000.0) <= 0.001), None
+    )
+    f_low, f_high = find_cutoffs(points)
+
+    return AcResult(
+        points=tuple(points),
+        gain_1khz=gain_1khz,
+        f_low_hz=f_low,
+        f_high_hz=f_high,
+        log=log,
+        netlist=netlist,
+        duration_s=duration_s,
+        engine_version=engine_version_text,
+    )
+
+
+def parse_tran(
+    log: str, netlist: str, duration_s: float, engine_version_text: str
+) -> TranResult:
+    tables = _parse_tables(log)
+    table = _find_table(tables, ("time", "v(5)", "v(6)"))
+    if table is None:
+        raise SpiceParseError("ไม่พบตารางเวลา v(5)/v(6) ใน ngspice log")
+
+    header, rows = table
+    if len(rows) < 2:
+        raise SpiceParseError("ตาราง Transient มีข้อมูลน้อยกว่า 2 จุด")
+
+    t_col = _column(header, "time")
+    in_col = _column(header, "v(5)")
+    out_col = _column(header, "v(6)")
+
+    points = tuple(
+        TranPoint(row[t_col], row[in_col], row[out_col]) for row in rows
+    )
+    if not all(
+        math.isfinite(value)
+        for point in points
+        for value in (point.time_s, point.vin, point.vout)
+    ):
+        raise SpiceParseError("ตาราง Transient มีค่าที่ไม่ใช่จำนวนจริง")
+
+    vin_values = [point.vin for point in points]
+    vout_values = [point.vout for point in points]
+    vin_pp = max(vin_values) - min(vin_values)
+    vout_pp = max(vout_values) - min(vout_values)
+
+    start = len(points) // 2
+    if len(points) - start < 2:
+        start = 0
+    tail_in = vin_values[start:]
+    tail_out = vout_values[start:]
+    mean_in = sum(tail_in) / len(tail_in)
+    mean_out = sum(tail_out) / len(tail_out)
+    covariance = sum(
+        (vin - mean_in) * (vout - mean_out) for vin, vout in zip(tail_in, tail_out)
+    )
+
+    stop = points[-1].time_s - points[0].time_s
+    step = stop / (len(points) - 1) if len(points) > 1 else 0.0
+
+    return TranResult(
+        points=points,
+        vin_pp=vin_pp,
+        vout_pp=vout_pp,
+        inverted=covariance < 0,
+        stop_s=stop,
+        step_s=step,
+        log=log,
+        netlist=netlist,
+        duration_s=duration_s,
+        engine_version=engine_version_text,
+    )
+
+
+def run_ac(
+    circuit: Circuit,
+    source: Source,
+    *,
+    exe: str | None = None,
+    timeout: float = 20.0,
+) -> AcResult:
+    netlist = build_netlist(circuit, source, "ac")
+    resolved = find_engine(exe)
+    started = time.perf_counter()
+    log = _invoke(netlist, resolved, timeout)
+    duration = time.perf_counter() - started
+    return parse_ac(log, netlist, duration, engine_version(resolved))
+
+
+def run_tran(
+    circuit: Circuit,
+    source: Source,
+    *,
+    exe: str | None = None,
+    timeout: float = 20.0,
+) -> TranResult:
+    netlist = build_netlist(circuit, source, "tran")
+    resolved = find_engine(exe)
+    started = time.perf_counter()
+    log = _invoke(netlist, resolved, timeout)
+    duration = time.perf_counter() - started
+    step, stop = tran_timing(source.frequency_hz)
+    result = parse_tran(log, netlist, duration, engine_version(resolved))
+    return dataclasses.replace(result, step_s=step, stop_s=stop)

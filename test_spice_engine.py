@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 from spice_engine import (
+    AcPoint,
     Circuit,
     Source,
     SpiceEngineNotFound,
@@ -15,9 +16,13 @@ from spice_engine import (
     _invoke,
     build_netlist,
     engine_version,
+    find_cutoffs,
     find_engine,
+    parse_ac,
     parse_dc,
+    parse_tran,
     run_dc,
+    tran_timing,
     validate_circuit,
     validate_source,
 )
@@ -39,6 +44,29 @@ No. of Data Rows : 1
            ic            0.00141697
            ib           4.43721e-06
           vbe              0.662517
+"""
+
+AC_LOG = """
+Index   frequency       vm(5)           vm(6)
+--------------------------------------------------------------------------------
+0	1.000000e+01	1.000000e+00	1.741340e+00
+1	1.000000e+03	1.000000e+00	1.763723e+00
+2	1.000000e+07	1.000000e+00	1.741437e+00
+
+Index   frequency       vp(5)           vp(6)
+--------------------------------------------------------------------------------
+0	1.000000e+01	0.000000e+00	-3.11922e+00
+1	1.000000e+03	0.000000e+00	-3.13939e+00
+2	1.000000e+07	0.000000e+00	-3.13000e+00
+"""
+
+TRAN_LOG = """
+Index   time            v(5)            v(6)
+--------------------------------------------------------------------------------
+0	0.000000e+00	0.000000e+00	-8.40000e-06
+1	2.500000e-04	1.000000e-02	-1.76000e-02
+2	5.000000e-04	0.000000e+00	-8.00000e-06
+3	7.500000e-04	-1.000000e-02	1.76000e-02
 """
 
 
@@ -157,6 +185,62 @@ class TestDc(unittest.TestCase):
             )
         self.assertAlmostEqual(result.ic, 0.00141697)
         self.assertIn(".op", invoke.call_args.args[0])
+
+
+class TestAc(unittest.TestCase):
+    def test_parse_ac_converts_phase_to_degrees(self):
+        result = parse_ac(AC_LOG, "n", 0.0, "ngspice-33")
+        self.assertEqual(len(result.points), 3)
+        self.assertAlmostEqual(result.points[1].gain, 1.763723)
+        self.assertAlmostEqual(result.points[1].gain_db, 20 * math.log10(1.763723))
+        self.assertAlmostEqual(result.points[1].phase_deg, -179.87, places=1)
+        self.assertAlmostEqual(result.gain_1khz.gain, 1.763723)
+
+    def test_missing_phase_table_is_a_parse_error(self):
+        with self.assertRaises(SpiceParseError):
+            parse_ac(AC_LOG.split("Index   frequency       vp")[0], "n", 0.0, "v")
+
+    def test_paginated_table_keeps_rows_after_form_feed(self):
+        paginated = AC_LOG.replace(
+            "1\t1.000000e+03",
+            "\nIndex   frequency       vm(5)           vm(6)\n"
+            "--------------------------------------------------------------------------------\n"
+            "1\t1.000000e+03",
+            1,
+        )
+        result = parse_ac(paginated, "n", 0.0, "ngspice-33")
+        self.assertEqual(len(result.points), 3)
+
+    def test_cutoffs_interpolate_and_flat_response_is_undetermined(self):
+        points = [
+            AcPoint(f, g, 0, 0)
+            for f, g in ((10, 1.0), (100, 10.0), (1000, 10.0), (10000, 1.0))
+        ]
+        low, high = find_cutoffs(points)
+        self.assertAlmostEqual(low, 47.29, places=1)
+        self.assertAlmostEqual(high, 2115.0, delta=5.0)
+
+        flat = [AcPoint(f, 2.0, 0, 0) for f in (10, 100, 1000)]
+        self.assertEqual(find_cutoffs(flat), (None, None))
+
+
+class TestTran(unittest.TestCase):
+    def test_timing_uses_five_ms_or_three_cycles(self):
+        self.assertEqual(tran_timing(1e3), (2.5e-06, 0.005))
+        self.assertAlmostEqual(tran_timing(100)[1], 0.03)
+        self.assertEqual(tran_timing(1)[1], 0.2)
+
+    def test_parse_tran_reports_pp_and_inversion(self):
+        result = parse_tran(TRAN_LOG, "n", 0.0, "ngspice-33")
+        self.assertEqual(len(result.points), 4)
+        self.assertAlmostEqual(result.vin_pp, 0.02)
+        self.assertAlmostEqual(result.vout_pp, 0.0352)
+        self.assertTrue(result.inverted)
+
+    def test_short_table_is_a_parse_error(self):
+        broken = TRAN_LOG.splitlines()[0] + "\n" + TRAN_LOG.splitlines()[2]
+        with self.assertRaises(SpiceParseError):
+            parse_tran(broken, "n", 0.0, "v")
 
 
 if __name__ == "__main__":
