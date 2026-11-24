@@ -187,6 +187,22 @@ ngspice รันสำเร็จ อ่านตารางครบ แล�
 ปุ่ม `<details>` ใต้ผลลัพธ์แสดง **netlist ที่รันจริง** และ **ngspice log ดิบของรอบนั้น**
 ทุกครั้ง ไม่ใช่ข้อความตัวอย่าง — ตารางและกราฟด้านบนparse จาก log ชุดเดียวกัน
 
+## Screenshot กราฟจาก Browser จริง (ตามเกณฑ์ใบงาน)
+
+ถ่ายจากแท็บ OpenCode Browser หลังกดปุ่ม `Run AC` / `Run Transient` จริง:
+
+- Bode (dB + เฟส, 161 จุดจาก ngspice): [`lab04-ac-bode.png`](evidence/lab04-ac-bode.png)
+- Waveform (Vin/Vout, 2008 จุดจาก ngspice): [`lab04-tran-waveform.png`](evidence/lab04-tran-waveform.png)
+
+ภาพเหล่านี้เป็นผลที่ render จาก log ของรอบนั้น ไม่ใช่ภาพตัวอย่างหรือ mock data
+
+## ส่วนที่ AI ทำ / นักศึกษาตรวจ (Lab 04)
+
+- AI: เขียน `spice_engine.py` (netlist, batch run, parser), `plots.py` (SVG), `/simulator` route + template/CSS และชุดทดสอบ 3 ไฟล์
+- AI: ติดตั้ง Impeccable, รัน detector, ปรับ UI เฉพาะหน้า `/simulator` และร่างเอกสารนี้
+- นักศึกษาตรวจ: ค่าอ้างอิงใบงาน (12 V, 100k/22k/2.2k/1k/10k, 10u, 10 mV@1 kHz), แหล่งโมเดล Q2N3904 และความต่าง BF=300 กับ analytical β=150
+- นักศึกษาตรวจ: ผล B1–B8 บน browser จริงโดยเฉพาะ fH `not determined`, การกลับเฟส ~180° และ error `RE = 0`; ทวนว่า netlist/log ที่แสดงตรงกับรันที่กด
+
 ## Impeccable (UI critique / polish)
 
 - ติดตั้งด้วย `npx --yes impeccable install` สำเร็จ (project scope, OpenCode, engine v0.1.27)
@@ -213,6 +229,17 @@ ngspice รันสำเร็จ อ่านตารางครบ แล�
 - ngspice-33 ตัดตารางเป็นหน้า ๆ ละ 55 แถว พร้อม form feed + ซ้ำ header
   parser รองรับกรณีนี้และทดสอบ regression ไว้ (`test_paginated_table_keeps_rows_after_form_feed`)
 - `vp()` ต้องอยู่คนละบรรทัดกับ `.print ac` และคืนค่าเป็น radian → แปลงเป็นองศาใน `parse_ac`
+
+## ตรวจเทียบ Rubric 10 คะแนนในใบงาน
+
+| หัวข้อ | คะแนน | หลักฐานใน repo นี้ |
+|---|---|---|
+| ความต่อเนื่องจาก Lab 3 | 1 | Lab 03 A1–A5 ข้างบน + 85 tests รวม Lab 3/4 |
+| การเชื่อม ngspice | 3 | `spice_engine.py`, netlist/log ดิบใน `<details>`, engine path + model source บนหน้า |
+| AC + Transient | 2 | กราฟ/ตาราง B4–B6 + screenshot `lab04-ac-bode.png`, `lab04-tran-waveform.png` |
+| UI และ Impeccable | 2 | หัวข้อ Impeccable ข้างบน + CSS ที่เปลี่ยนเฉพาะ `/simulator` |
+| Browser Acceptance | 1 | ตาราง B1–B8 (NOT RUN ถูกระบุตรงไปตรงมา) |
+| GitHub + Reproducibility | 1 | commit บน `main`, README (ติดตั้ง/รัน), เอกสารนี้ + ภาพใน `docs/evidence/` |
 
 ## แหล่งเก็บโค้ด
 
