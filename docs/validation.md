@@ -132,3 +132,65 @@ AI ช่วย:
 - ตรวจสมการและหน่วยของทั้งสามโหมดเทียบกับใบงาน
 - ตรวจค่าอ้างอิง A1–A5 ที่คำนวณมือในหัวข้อก่อนหน้า (โดยเฉพาะ A4 = 8.03 V)
 - ทวนผลบนเบราว์เซอร์อย่างน้อยหนึ่งกรณี (A1, A3, A5) และดู screenshot ด้วยตนเอง
+
+---
+
+# Lab 04 — CE Amplifier Simulator: ผลตรวจรับ B1–B8
+
+วันที่ตรวจ: 24 พฤศจิกายน 2026
+
+## สภาพแวดล้อม
+
+| รายการ | ค่า |
+|---|---|
+| OS / Python / Flask | Windows · Python 3.12.7 · Flask 3.1.3 |
+| Engine | ngspice-33 (64-bit) path แสดงบนหน้า `/simulator` |
+| โมเดล BJT | `Q2N3904` — LTspice Standard.bjt (mfg=Philips), `BF=300` |
+| ชุดทดสอบ | `python -m unittest -v` → **85 tests OK** |
+| เครื่องมือ | OpenCode Browser (แท็บจริง `/simulator`, ส่งฟอร์มจริงแล้วอ่านข้อความ/DOM ที่ render) |
+| Playwright MCP | **NOT RUN** (ผู้ใช้เลือกใช้ OpenCode Browser) |
+
+หมายเหตุวิธีกดปุ่ม: ตัวชี้ของ Browser tool ไม่สามารถคลิกปุ่มได้
+(`DOM.getNodeForLocation failed`) จึงใช้ `evaluate` เรียก `.click()` บน `<button>`
+จริงของหน้าเว็บ — คำสั่งยังส่ง POST ผ่านฟอร์มเดิมและอ่านผลที่ render จาก ngspice จริง
+ไม่ได้เรียก `run_simulation` จาก Python แทน
+
+## ตาราง B1–B8
+
+| กรณี | วิธีตรวจ | ผลที่เห็น | สถานะ |
+|---|---|---|---|
+| B1 | Lab 03 หน้า `/` ทั้ง 3 โหมด (หลักฐานเดิม A1–A5 + `test_app.py`/`test_bjt.py`) | Divider/Fixed/Emitter ยังคำนวณและสลับโหมดได้ `/simulator` มีลิงก์ไป-กลับ | ผ่าน (หลักฐาน Lab 03) |
+| B2 | `/simulator` ค่า default → `Run DC (.op)` | `Success`, engine `ngspice-33`, `Q2N3904`; SPICE `VB 2.084 V`, `VE 1.421 V`, `VC 8.883 V`, `VCE 7.462 V`, `IC 1.417 mA`; Analytical `IC 1.299 mA`, `VCE 7.834 V` แยกตารางต่างหาก + ผลต่าง `+9.1%` / `−4.8%` | ผ่าน |
+| B3 | เปลี่ยน `RE 1k → 2k` → `Run DC` ซ้ำ | `IC 1.417 → 0.737 mA`, `VCE 7.462 → 8.902 V`, `VE 1.421 → 1.478 V` — ค่าเปลี่ยนตามรันใหม่ ไม่ค้างค่าเดิม | ผ่าน |
+| B4 | `Run AC (.ac)` | gain 1 kHz `1.764 V/V = 4.93 dB`, phase `−179.9°`, `fL 1.75 Hz`, `fH not determined in sweep range`; SVG 161 จุด มีแกน `ความถี่ (Hz)`, `ขนาด (dB)`, `เฟส (องศา)` | ผ่าน |
+| B5 | `Run tran` ที่ `10 mV peak, 1 kHz` | `Vin 20.00 mVpp`, `Vout 35.27 mVpp`, `กลับเฟส (~180°)`, หน้าต่าง `5.00 ms`, step `2.50 µs`, 2008 จุด; SVG มีแกน `เวลา (ms)`, `แรงดัน (V)` และ legend `Vin`/`Vout` | ผ่าน |
+| B6 | เปลี่ยน amplitude `10 → 20 mV` → `Run tran` ซ้ำ | `Vin 40.00 mVpp`, `Vout 70.55 mVpp` (เพิ่มจาก 35.27) waveform ปรับตามค่าที่ตั้ง | ผ่าน |
+| B7 | ใส่ `RE = 0` → `Run DC` | ข้อความ `Error: ข้อมูลไม่ถูกต้อง: RE ต้องมากกว่า 0`, ไม่มี `<svg>`, ไม่มีป้าย `Success` ไม่มีผลเก่าหลงเหลือ | ผ่าน |
+| B8 | ตรวจ screenshot desktop ~1280 px และ mobile ~390 px | **NOT RUN** — ผู้ใช้ขอให้เลื่อนการเปิดแอป/ตรวจภาพไปทีหลัง ยังไม่มี screenshot ใหม่ของ Lab 04 | รอดำเนินการ |
+
+## หมายเหตุผลที่ต้องแยก SPICE กับ Analytical
+
+ค่าที่ต่างกัน (~9% ที่ IC) ไม่ใช่ความผิดพลาด: Analytical ใช้ β=150, VBE=0.70 V คงที่
+และ Thevenin closed form ขณะที่ SPICE ใช้โมเดลจริง `BF=300`, Early effect (`VAF=100`)
+และ VBE ที่คำนวณจาก `IS` ของโมเดล (~0.663 V) ตามที่ design doc §5 กำหนด
+จึงไม่มีการตั้ง tolerance pass/fail ระหว่างสองคอลัมน์ — สถานะ "ผ่าน" หมายถึง
+ngspice รันสำเร็จ อ่านตารางครบ และแสดงผลจาก log รอบนั้นจริง
+
+## หลักฐานที่เปิดได้จากหน้าเว็บ
+
+ปุ่ม `<details>` ใต้ผลลัพธ์แสดง **netlist ที่รันจริง** และ **ngspice log ดิบของรอบนั้น**
+ทุกครั้ง ไม่ใช่ข้อความตัวอย่าง — ตารางและกราฟด้านบนparse จาก log ชุดเดียวกัน
+
+## ผลต่างจากที่วางแผนไว้
+
+- `find_cutoffs` ใช้จุดตัดที่ `gain_max/√2` บนสเกล log ของความถี่ ทำให้ fL ≈ 1.75 Hz
+  และไม่พบ fH ในช่วง 1 Hz–100 MHz (gain แบนจนเกินช่วงสแกน)
+  จึงแสดงข้อความ `not determined in sweep range` ตามที่ออกแบบ ไม่ได้สร้างเลขขึ้นมาเอง
+- ngspice-33 ตัดตารางเป็นหน้า ๆ ละ 55 แถว พร้อม form feed + ซ้ำ header
+  parser รองรับกรณีนี้และทดสอบ regression ไว้ (`test_paginated_table_keeps_rows_after_form_feed`)
+- `vp()` ต้องอยู่คนละบรรทัดกับ `.print ac` และคืนค่าเป็น radian → แปลงเป็นองศาใน `parse_ac`
+
+## แหล่งเก็บโค้ด
+
+GitHub: <https://github.com/B6807757/Gitlab> · โค้ด Lab 04 อยู่บน `main`
+(`a60894d` = โค้ด + เทสต์, `b92c67a` = เอกสาร README)
